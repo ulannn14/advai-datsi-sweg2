@@ -1,6 +1,6 @@
 import pandas as pd
 
-from scripts.preprocessing import load_dataset
+from ml.scripts.preprocessing import load_dataset
 
 def test_load_dataset():
 
