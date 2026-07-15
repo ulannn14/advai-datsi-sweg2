@@ -105,6 +105,7 @@ def validate_dtypes(df):
 # ==========================================================
 
 def drop_columns(df, columns):
+    return df
     """
     Remove one or more columns from the dataset.
 
@@ -118,8 +119,8 @@ def drop_columns(df, columns):
     Returns
     -------
     pandas.DataFrame
-    """
-
+    
+    
     missing_columns = [col for col in columns if col not in df.columns]
 
     if missing_columns:
@@ -128,6 +129,7 @@ def drop_columns(df, columns):
         )
 
     return df.drop(columns=columns)
+    """
 
 
 def check_missing_values(df):
