@@ -1,54 +1,81 @@
+from unittest import result
+
 import pandas as pd
 
-from scripts.preprocessing import load_dataset
+from ml.scripts.preprocessing import load_dataset
 
 def test_load_dataset():
 
-    df = load_dataset("datasets/SCOMMERCE_GenZ_UniversityStudent_757_DIB.csv")
+    df = load_dataset("ml/datasets/S-COMMERCE_GenZ_UniversityStudent_757_DIB.csv")
 
     assert isinstance(df, pd.DataFrame)
 
     assert df.shape == (757,31)
 
-from scripts.preprocessing import validate_columns
+from ml.scripts.preprocessing import validate_columns
 
 def test_columns_exist():
+    df = load_dataset("ml/datasets/S-COMMERCE_GenZ_UniversityStudent_757_DIB.csv")
 
-    df = validate_columns("datasets/SCOMMERCE_GenZ_UniversityStudent_757_DIB.csv")
+    columns = validate_columns(df)
 
     expected = [
-        "Gender",
-        "Job",
-        "Income",
-        "PEU1",
-        "PEU2",
-        "...",
-        "AUB4"
+        'Gender',
+        'Job',
+        'Income',
+        'Area',
+        'Frequently',
+        'PU1',
+        'PU2',
+        'PU3',
+        'PU4',
+        'PEU1',
+        'PEU2',
+        'PEU3',
+        'PEU4',
+        'FSC1',
+        'FSC2',
+        'FSC3',
+        'SP1',
+        'SP2',
+        'SP3',
+        'SP4',
+        'TP1',
+        'TP2',
+        'TP3',
+        'IB1',
+        'IB2',
+        'IB3',
+        'IB4',
+        'AUB1',
+        'AUB2',
+        'AUB3',
+        'AUB4'
     ]
 
-    assert list(df.columns) == expected
+    assert columns == expected
 
-from scripts.preprocessing import drop_columns
+from ml.scripts.preprocessing import drop_columns
 
 def test_remove_job():
 
-    df = load_dataset("datasets/SCOMMERCE_GenZ_UniversityStudent_757_DIB.csv")
+    df = load_dataset("ml/datasets/S-COMMERCE_GenZ_UniversityStudent_757_DIB.csv")
 
     df = drop_columns(df, ["Job"])
 
     assert "Job" not in df.columns
 
-from scripts.preprocessing import drop_columns
+from ml.scripts.preprocessing import drop_columns
 
 def test_remove_peu4():
 
-    df = load_dataset("datasets/SCOMMERCE_GenZ_UniversityStudent_757_DIB.csv")
+    df = load_dataset("ml/datasets/S-COMMERCE_GenZ_UniversityStudent_757_DIB.csv")
 
     df = drop_columns(df, ["PEU4"])
 
     assert "PEU4" not in df.columns
 
-from scripts.preprocessing import compute_composite_score
+from ml.scripts.preprocessing import compute_composite_score
 
 def test_compute_pu():
 
@@ -61,6 +88,10 @@ def test_compute_pu():
 
     })
 
-    pu = compute_composite_score("datasets/SCOMMERCE_GenZ_UniversityStudent_757_DIB.csv",["PU1","PU2","PU3","PU4"], "PU")
+    result = compute_composite_score(
+    df,
+    ["PU1","PU2","PU3","PU4"],
+    "PU"
+    )
 
-    assert pu.iloc[0] == 4
+    assert result["PU"].iloc[0] == 4
