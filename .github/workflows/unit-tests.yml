@@ -4,18 +4,21 @@ on:
   push:
     branches:
       - development
+
   pull_request:
+    branches:
+      - main
+
+  workflow_dispatch:
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -24,16 +27,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest
-
-      - name: Debug environment
-        run: |
-          pwd
-          ls -R
-          python --version
-          python -c "import os; print('Working directory:', os.getcwd())"
-          python -c "import sys; print('Python path:', sys.path)"
-          python -c "import ml; print('ML package:', ml.__file__)"
-          python -c "from ml.scripts.preprocessing import load_dataset; print('Import successful!')"
 
       - name: Run unit tests
         env:
