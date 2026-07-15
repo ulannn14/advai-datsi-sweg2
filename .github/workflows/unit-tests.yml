@@ -30,6 +30,10 @@ jobs:
         python -c "import sys; print(sys.path)"
         python -c "import ml; print(ml.__file__)"
 
+    - name: Show test file
+      run: |
+        sed -n '1,50p' ml/tests/test_preprocessing.py  
+
     - name: Run tests
       run: |
         pytest
