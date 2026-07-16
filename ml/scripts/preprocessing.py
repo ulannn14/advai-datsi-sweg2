@@ -10,6 +10,10 @@ Social Commerce Adoption Among Generation Z University Students in Vietnam
 
 import pandas as pd
 
+"""
+comment
+"""
+
 
 # ==========================================================
 # MODULE 1 - DATASET LOADING
