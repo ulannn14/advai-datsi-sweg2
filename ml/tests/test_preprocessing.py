@@ -22,15 +22,20 @@ def test_load_dataset():
 
     df = load_dataset(DATASET_PATH)
 
-    assert isinstance(df, pd.DataFrame)
-    assert df.shape == (757, 31)
+    print(f"Loaded dataset successfully.")
+    print(f"Dataset shape: {df.shape}")
+
+    assert isinstance(df, pd.DataFrame), "Output is not a pandas DataFrame."
+    assert df.shape == (757, 31), f"Expected shape (757, 31), got {df.shape}"
 
 
 def test_invalid_dataset():
     """SCA-UT-002"""
 
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(FileNotFoundError) as exc_info:
         load_dataset("invalid.csv")
+
+    print(f"Expected exception caught: {exc_info.value}")
 
 
 # ==========================================================
@@ -44,7 +49,9 @@ def test_inspect_dataset():
 
     shape = inspect_dataset(df)
 
-    assert shape == (757, 31)
+    print(f"inspect_dataset() returned: {shape}")
+
+    assert shape == (757, 31), f"Expected (757, 31), got {shape}"
 
 
 def test_validate_columns():
@@ -54,9 +61,13 @@ def test_validate_columns():
 
     columns = validate_columns(df)
 
-    assert len(columns) == 31
-    assert columns[0] == "Gender"
-    assert columns[-1] == "AUB4"
+    print(f"Number of columns: {len(columns)}")
+    print(f"First column: {columns[0]}")
+    print(f"Last column: {columns[-1]}")
+
+    assert len(columns) == 31, f"Expected 31 columns, got {len(columns)}"
+    assert columns[0] == "Gender", f"Expected first column 'Gender', got '{columns[0]}'"
+    assert columns[-1] == "AUB4", f"Expected last column 'AUB4', got '{columns[-1]}'"
 
 
 def test_validate_dtypes():
@@ -66,8 +77,12 @@ def test_validate_dtypes():
 
     dtypes = validate_dtypes(df)
 
-    assert len(dtypes) == 31
-    assert all(dtype == "int64" for dtype in dtypes)
+    print("Column data types:")
+    print(dtypes)
+
+    assert len(dtypes) == 31, f"Expected 31 data types, got {len(dtypes)}"
+    assert all(dtype == "int64" for dtype in dtypes), \
+        f"Expected all dtypes to be int64, got {dtypes}"
 
 
 # ==========================================================
@@ -81,7 +96,9 @@ def test_remove_job():
 
     cleaned = drop_columns(df, ["Job"])
 
-    assert "Job" not in cleaned.columns
+    print(f"'Job' exists after cleaning? {'Job' in cleaned.columns}")
+
+    assert "Job" not in cleaned.columns, "'Job' column was not removed."
 
 
 def test_verify_job_removed():
@@ -93,7 +110,10 @@ def test_verify_job_removed():
 
     columns = validate_columns(cleaned)
 
-    assert "Job" not in columns
+    print("Columns after removing 'Job':")
+    print(columns)
+
+    assert "Job" not in columns, "'Job' column still exists."
 
 
 # ==========================================================
@@ -116,4 +136,7 @@ def test_compute_pu():
         "PU"
     )
 
-    assert result["PU"].iloc[0] == 4.0
+    print(f"Computed PU score: {result['PU'].iloc[0]}")
+
+    assert result["PU"].iloc[0] == 4.0, \
+        f"Expected PU score 4.0, got {result['PU'].iloc[0]}"
