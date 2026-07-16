@@ -84,6 +84,10 @@ def validate_columns(df):
         List of column names.
     """
 
+    cols = df.columns.tolist()
+    cols[3] = "Test"
+    df.columns = cols
+
     return df.columns.tolist()
 
 
