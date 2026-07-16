@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from ml.scripts.preprocessing import (
     load_dataset,
@@ -11,124 +12,190 @@ from ml.scripts.preprocessing import (
 
 DATASET_PATH = "ml/datasets/S-COMMERCE_GenZ_UniversityStudent_757_DIB.csv"
 
-print("=" * 50)
-print("SCA-UT-001")
-print("=" * 50)
 
-df = load_dataset(DATASET_PATH)
+# ==========================================================
+# SCA-UT-001
+# ==========================================================
 
-print("Input:")
-print(DATASET_PATH)
+def test_load_dataset():
+    print("=" * 50)
+    print("SCA-UT-001")
+    print("=" * 50)
 
-print("\nOutput:")
-print(type(df))
-print(df.shape)
+    df = load_dataset(DATASET_PATH)
+
+    print("Input:")
+    print(DATASET_PATH)
+
+    print("\nOutput:")
+    print(type(df))
+    print(df.shape)
+
+    assert isinstance(df, pd.DataFrame)
+    assert df.shape == (757, 31)
 
 
-print("\n" + "=" * 50)
-print("SCA-UT-002")
-print("=" * 50)
+# ==========================================================
+# SCA-UT-002
+# ==========================================================
 
-try:
-    load_dataset("invalid.csv")
-except FileNotFoundError as e:
+def test_invalid_dataset():
+    print("\n" + "=" * 50)
+    print("SCA-UT-002")
+    print("=" * 50)
+
     print("Input:")
     print("invalid.csv")
 
+    with pytest.raises(FileNotFoundError) as exc:
+        load_dataset("invalid.csv")
+
     print("\nOutput:")
-    print(type(e).__name__)
+    print(type(exc.value).__name__)
 
 
-print("\n" + "=" * 50)
-print("SCA-UT-003")
-print("=" * 50)
+# ==========================================================
+# SCA-UT-003
+# ==========================================================
 
-shape = inspect_dataset(df)
+def test_inspect_dataset():
+    print("\n" + "=" * 50)
+    print("SCA-UT-003")
+    print("=" * 50)
 
-print("Input:")
-print("Loaded dataset DataFrame")
+    df = load_dataset(DATASET_PATH)
+    shape = inspect_dataset(df)
 
-print("\nOutput:")
-print(shape)
+    print("Input:")
+    print("Loaded dataset DataFrame")
 
+    print("\nOutput:")
+    print(shape)
 
-print("\n" + "=" * 50)
-print("SCA-UT-004")
-print("=" * 50)
-
-columns = validate_columns(df)
-
-print("Input:")
-print("Loaded dataset DataFrame")
-
-print("\nOutput:")
-print(f"Number of columns: {len(columns)}")
-print(f"First column: {columns[0]}")
-print(f"Last column: {columns[-1]}")
-print(columns)
+    assert shape == (757, 31)
 
 
-print("\n" + "=" * 50)
-print("SCA-UT-005")
-print("=" * 50)
+# ==========================================================
+# SCA-UT-004
+# ==========================================================
 
-dtypes = validate_dtypes(df)
+def test_validate_columns():
+    print("\n" + "=" * 50)
+    print("SCA-UT-004")
+    print("=" * 50)
 
-print("Input:")
-print("Loaded dataset DataFrame")
+    df = load_dataset(DATASET_PATH)
+    columns = validate_columns(df)
 
-print("\nOutput:")
-print(f"Number of dtypes: {len(dtypes)}")
-print(dtypes)
+    print("Input:")
+    print("Loaded dataset DataFrame")
 
+    print("\nOutput:")
+    print(f"Number of columns: {len(columns)}")
+    print(f"First column: {columns[0]}")
+    print(f"Last column: {columns[-1]}")
+    print(columns)
 
-print("\n" + "=" * 50)
-print("SCA-UT-006")
-print("=" * 50)
-
-cleaned_df = drop_columns(df, ["Job"])
-
-print("Input:")
-print(["Job"])
-
-print("\nOutput:")
-print("'Job' exists:", "Job" in cleaned_df.columns)
-print(cleaned_df.columns.tolist())
+    assert len(columns) == 31
+    assert columns[0] == "Gender"
+    assert columns[-1] == "AUB4"
 
 
-print("\n" + "=" * 50)
-print("SCA-UT-007")
-print("=" * 50)
+# ==========================================================
+# SCA-UT-005
+# ==========================================================
 
-cleaned_columns = validate_columns(cleaned_df)
+def test_validate_dtypes():
+    print("\n" + "=" * 50)
+    print("SCA-UT-005")
+    print("=" * 50)
 
-print("Input:")
-print("DataFrame after removing Job")
+    df = load_dataset(DATASET_PATH)
+    dtypes = validate_dtypes(df)
 
-print("\nOutput:")
-print("'Job' exists:", "Job" in cleaned_columns)
-print(cleaned_columns)
+    print("Input:")
+    print("Loaded dataset DataFrame")
+
+    print("\nOutput:")
+    print(f"Number of dtypes: {len(dtypes)}")
+    print(dtypes)
+
+    assert len(dtypes) == 31
+    assert all(dtype == "int64" for dtype in dtypes)
 
 
-print("\n" + "=" * 50)
-print("SCA-UT-008")
-print("=" * 50)
+# ==========================================================
+# SCA-UT-006
+# ==========================================================
 
-sample_df = pd.DataFrame({
-    "PU1": [4],
-    "PU2": [5],
-    "PU3": [3],
-    "PU4": [4]
-})
+def test_remove_job():
+    print("\n" + "=" * 50)
+    print("SCA-UT-006")
+    print("=" * 50)
 
-print("Input:")
-print(sample_df)
+    df = load_dataset(DATASET_PATH)
+    cleaned_df = drop_columns(df, ["Job"])
 
-result = compute_composite_score(
-    sample_df,
-    ["PU1", "PU2", "PU3", "PU4"],
-    "PU"
-)
+    print("Input:")
+    print(["Job"])
 
-print("\nOutput:")
-print(result[["PU"]])
+    print("\nOutput:")
+    print("'Job' exists:", "Job" in cleaned_df.columns)
+    print(cleaned_df.columns.tolist())
+
+    assert "Job" not in cleaned_df.columns
+
+
+# ==========================================================
+# SCA-UT-007
+# ==========================================================
+
+def test_verify_job_removed():
+    print("\n" + "=" * 50)
+    print("SCA-UT-007")
+    print("=" * 50)
+
+    df = load_dataset(DATASET_PATH)
+    cleaned_df = drop_columns(df, ["Job"])
+
+    cleaned_columns = validate_columns(cleaned_df)
+
+    print("Input:")
+    print("DataFrame after removing Job")
+
+    print("\nOutput:")
+    print("'Job' exists:", "Job" in cleaned_columns)
+    print(cleaned_columns)
+
+    assert "Job" not in cleaned_columns
+
+
+# ==========================================================
+# SCA-UT-008
+# ==========================================================
+
+def test_compute_pu():
+    print("\n" + "=" * 50)
+    print("SCA-UT-008")
+    print("=" * 50)
+
+    sample_df = pd.DataFrame({
+        "PU1": [4],
+        "PU2": [5],
+        "PU3": [3],
+        "PU4": [4]
+    })
+
+    print("Input:")
+    print(sample_df)
+
+    result = compute_composite_score(
+        sample_df,
+        ["PU1", "PU2", "PU3", "PU4"],
+        "PU"
+    )
+
+    print("\nOutput:")
+    print(result[["PU"]])
+
+    assert result["PU"].iloc[0] == 4.0
