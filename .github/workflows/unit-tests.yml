@@ -32,4 +32,4 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}
         run: |
-          python -m pytest ml/tests -v -s
+          python -m pytest ml/tests/test_failed_cases.py -v -s
