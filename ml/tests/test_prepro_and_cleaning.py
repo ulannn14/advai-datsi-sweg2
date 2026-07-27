@@ -15,6 +15,17 @@ from ml.scripts.preprocessing import (
 
 DATASET_PATH = "ml/datasets/S-COMMERCE_GenZ_UniversityStudent_757_DIB.csv"
 
+EXPECTED_COLUMNS = [
+    "Gender", "Job", "Income", "Area", "Frequently",
+    "PU1", "PU2", "PU3", "PU4",
+    "PEU1", "PEU2", "PEU3", "PEU4",
+    "FSC1", "FSC2", "FSC3",
+    "SP1", "SP2", "SP3", "SP4",
+    "TP1", "TP2", "TP3",
+    "IB1", "IB2", "IB3", "IB4",
+    "AUB1", "AUB2", "AUB3", "AUB4"
+]
+
 # ==========================================================
 # MODULE 1 - DATASET LOADING
 # ==========================================================
@@ -22,8 +33,40 @@ DATASET_PATH = "ml/datasets/S-COMMERCE_GenZ_UniversityStudent_757_DIB.csv"
 def test_load_dataset():
     df = load_dataset(DATASET_PATH)
 
+    # Correct object
     assert isinstance(df, pd.DataFrame)
+
+    # Correct dimensions
     assert df.shape == (757, 31)
+
+    # Correct index
+    assert list(df.index) == list(range(757))
+
+    # Expected columns
+    expected_columns = [
+        "Gender", "Job", "Income", "Area", "Frequently",
+        "PU1","PU2","PU3","PU4",
+        "PEU1","PEU2","PEU3","PEU4",
+        "FSC1","FSC2","FSC3",
+        "SP1","SP2","SP3","SP4",
+        "TP1","TP2","TP3",
+        "IB1","IB2","IB3","IB4",
+        "AUB1","AUB2","AUB3","AUB4"
+    ]
+
+    assert df.columns.tolist() == expected_columns
+
+    # No duplicate column names
+    assert df.columns.is_unique
+
+    # Row count
+    assert len(df) == 757
+
+    # Column count
+    assert len(df.columns) == 31
+
+    # Dataset not empty
+    assert not df.empty
 
 
 def test_invalid_dataset():
@@ -48,9 +91,7 @@ def test_validate_columns():
 
     columns = validate_columns(df)
 
-    assert len(columns) == 31
-    assert columns[0] == "Gender"
-    assert columns[-1] == "AUB4"
+    assert columns == EXPECTED_COLUMNS
 
 
 def test_validate_dtypes():
