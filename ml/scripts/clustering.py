@@ -68,7 +68,7 @@ def calculate_vif(X_scaled, features):
 
 
 # ==========================================================
-# MODULE 8 - CLUSTERING MODEL SELECTION
+# MODULE 8 - OPTIMAL K SELECTION
 # ==========================================================
 
 def evaluate_kmeans_clusters(X_scaled, k_values):
@@ -99,7 +99,7 @@ def evaluate_kmeans_clusters(X_scaled, k_values):
 
 
 # ==========================================================
-# MODULE 9 - K-MEANS CLUSTERING
+# MODULE 9 - CLUSTERING
 # ==========================================================
 
 def perform_kmeans(X_scaled):
