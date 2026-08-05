@@ -250,7 +250,7 @@ def test_standardize_features():
 # ==========================================================
 
 def test_standardize_features():
-    """SCA-UT-012"""
+    """SCA-UT-015"""
 
     X_train = pd.DataFrame({
         "A": [1, 2, 3, 4],
@@ -286,7 +286,7 @@ def test_standardize_features():
 # ==========================================================
 
 def test_create_rf_param_grid():
-    """SCA-UT-013"""
+    """SCA-UT-016"""
 
     grid = create_rf_param_grid()
 
@@ -310,7 +310,7 @@ def test_create_rf_param_grid():
 
 
 def test_create_rf_gridsearch():
-    """SCA-UT-014"""
+    """SCA-UT-017"""
 
     param_grid = create_rf_param_grid()
 
@@ -328,7 +328,7 @@ def test_create_rf_gridsearch():
 
 
 def test_fit_rf_gridsearch():
-    """SCA-UT-015"""
+    """SCA-UT-018"""
 
     X, y = make_regression(
         n_samples=80,
@@ -365,7 +365,7 @@ def test_fit_rf_gridsearch():
 
 
 def test_get_best_rf_params():
-    """SCA-UT-016"""
+    """SCA-UT-019"""
 
     X, y = make_regression(
         n_samples=80,
@@ -404,7 +404,7 @@ def test_get_best_rf_params():
 
 
 def test_summarize_rf_results():
-    """SCA-UT-017"""
+    """SCA-UT-020"""
 
     X, y = make_regression(
         n_samples=80,
@@ -451,7 +451,7 @@ def test_summarize_rf_results():
 
 
 def test_get_best_rf_model():
-    """SCA-UT-018"""
+    """SCA-UT-021"""
 
     X, y = make_regression(
         n_samples=80,
@@ -487,7 +487,7 @@ def test_get_best_rf_model():
 
 
 def test_predict_rf():
-    """SCA-UT-019"""
+    """SCA-UT-022"""
 
     X, y = make_regression(
         n_samples=80,
@@ -515,7 +515,7 @@ def test_predict_rf():
 # ==========================================================
 
 def test_create_mlp_param_grid():
-    """SCA-UT-020"""
+    """SCA-UT-023"""
 
     param_grid = create_mlp_param_grid()
 
@@ -555,7 +555,7 @@ def test_create_mlp_param_grid():
 
 
 def test_create_mlp_gridsearch():
-    """SCA-UT-021"""
+    """SCA-UT-024"""
 
     param_grid = create_mlp_param_grid()
     kf = create_kfold()
@@ -575,7 +575,7 @@ def test_create_mlp_gridsearch():
 
 
 def test_fit_mlp_gridsearch():
-    """SCA-UT-022"""
+    """SCA-UT-025"""
 
     df = prepare_dataset()
 
@@ -627,7 +627,7 @@ def test_fit_mlp_gridsearch():
 # ==========================================================
 
 def test_get_best_mlp_params():
-    """SCA-UT-023"""
+    """SCA-UT-026"""
 
     df = prepare_dataset()
 
@@ -682,7 +682,7 @@ def test_get_best_mlp_params():
 
 
 def test_get_best_mlp_cv_mse():
-    """SCA-UT-024"""
+    """SCA-UT-027"""
 
     df = prepare_dataset()
 
@@ -729,7 +729,7 @@ def test_get_best_mlp_cv_mse():
 
 
 def test_get_best_mlp_model():
-    """SCA-UT-025"""
+    """SCA-UT-028"""
 
     df = prepare_dataset()
 
@@ -775,7 +775,7 @@ def test_get_best_mlp_model():
 
 
 def test_predict_mlp():
-    """SCA-UT-026"""
+    """SCA-UT-029"""
 
     df = prepare_dataset()
 
@@ -831,7 +831,7 @@ def test_predict_mlp():
 # ==========================================================
 
 def test_evaluate_regression():
-    """SCA-UT-027"""
+    """SCA-UT-030"""
     y_true = np.array([1, 2, 3, 4, 5])
     y_pred = np.array([1.1, 2.1, 2.9, 3.8, 5.2])
 
@@ -844,7 +844,7 @@ def test_evaluate_regression():
 
 
 def test_evaluate_regression_perfect_prediction():
-    """SCA-UT-028"""
+    """SCA-UT-031"""
     y_true = np.array([1, 2, 3, 4, 5])
 
     mae, mse, rmse, r2 = evaluate_regression(y_true, y_true)
@@ -860,7 +860,7 @@ def test_evaluate_regression_perfect_prediction():
 # ==========================================================
 
 def test_compare_models():
-    """SCA-UT-029"""
+    """SCA-UT-032"""
     comparison = compare_models(
         0.20, 0.10, 0.32, 0.80,  # rf_mae, rf_mse, rf_rmse, rf_r2
         0.25, 0.15, 0.39, 0.72   # mlp_mae, mlp_mse, mlp_rmse, mlp_r2
