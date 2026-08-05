@@ -2,7 +2,6 @@ from unittest import result
 
 import pandas as pd
 import pytest
-from tensorboard import summary
 
 from ml.scripts.preprocessing import (
     load_dataset,
