@@ -21,6 +21,15 @@ from ml.scripts.machinelearning import (
     split_dataset,
     create_kfold,
     standardize_features,
+
+    get_construct_descriptives,
+    get_construct_correlation_matrix,
+    get_aub_by_gender_summary,
+    run_ttest_aub_gender,
+    get_aub_by_area_summary,
+    run_anova_aub_area,
+    get_aub_by_frequency_summary,
+
     create_rf_param_grid,
     create_rf_gridsearch,
     fit_rf_gridsearch,
@@ -69,7 +78,6 @@ def prepare_dataset():
         df = compute_composite_score(df, cols, new_col)
 
     return df
-
 
 # ==========================================================
 # MODULE 1 - FEATURE SELECTION
@@ -300,10 +308,19 @@ def test_create_rf_gridsearch():
 def test_fit_rf_gridsearch():
     """SCA-UT-018"""
 
-    X, y = make_regression(
-        n_samples=80,
-        n_features=6,
-        noise=0.1,
+    df = prepare_dataset()
+
+    X = select_features(
+        df,
+        ["PU", "PEU", "FSC", "SP", "TP", "IB"]
+    )
+
+    y = select_target(df, "AUB")
+
+    X_train, X_test, y_train, y_test = split_dataset(
+        X,
+        y,
+        test_size=0.20,
         random_state=1
     )
 
@@ -315,23 +332,24 @@ def test_fit_rf_gridsearch():
         "min_samples_leaf": [1]
     }
 
-    kf = create_kfold()
-
     grid = create_rf_gridsearch(
         param_grid,
-        kf,
+        create_kfold(),
         n_jobs=1
     )
 
     fitted = fit_rf_gridsearch(
         grid,
-        X,
-        y
+        X_train,
+        y_train
     )
 
     print("RF GridSearch fitted.")
+    print("Best parameters:", fitted.best_params_)
 
     assert hasattr(fitted, "best_estimator_")
+    assert hasattr(fitted, "best_params_")
+    assert hasattr(fitted, "best_score_")
 
 
 def test_get_best_rf_params():
@@ -459,26 +477,43 @@ def test_get_best_rf_model():
 def test_predict_rf():
     """SCA-UT-022"""
 
-    X, y = make_regression(
-        n_samples=80,
-        n_features=6,
+    df = prepare_dataset()
+
+    X = select_features(
+        df,
+        ["PU", "PEU", "FSC", "SP", "TP", "IB"]
+    )
+
+    y = select_target(df, "AUB")
+
+    X_train, X_test, y_train, y_test = split_dataset(
+        X,
+        y,
+        test_size=0.20,
         random_state=1
     )
 
     model = RandomForestRegressor(
+        n_estimators=10,
         random_state=1
     )
 
-    model.fit(X, y)
+    model.fit(
+        X_train,
+        y_train
+    )
 
     predictions = predict_rf(
         model,
-        X
+        X_test
     )
 
+    print("First 5 RF predictions:")
     print(predictions[:5])
 
-    assert len(predictions) == len(X)
+    assert isinstance(predictions, np.ndarray)
+    assert len(predictions) == len(y_test)
+    assert np.isfinite(predictions).all()
 
 # ==========================================================
 # MODULE 8 - MLP REGRESSOR
@@ -802,10 +837,52 @@ def test_predict_mlp():
 
 def test_evaluate_regression():
     """SCA-UT-030"""
-    y_true = np.array([1, 2, 3, 4, 5])
-    y_pred = np.array([1.1, 2.1, 2.9, 3.8, 5.2])
 
-    mae, mse, rmse, r2 = evaluate_regression(y_true, y_pred)
+    df = prepare_dataset()
+
+    X = select_features(
+        df,
+        ["PU", "PEU", "FSC", "SP", "TP", "IB"]
+    )
+
+    y = select_target(df, "AUB")
+
+    X_train, X_test, y_train, y_test = split_dataset(
+        X,
+        y,
+        test_size=0.20,
+        random_state=1
+    )
+
+    model = RandomForestRegressor(
+        n_estimators=10,
+        random_state=1
+    )
+
+    model.fit(
+        X_train,
+        y_train
+    )
+
+    predictions = predict_rf(
+        model,
+        X_test
+    )
+
+    mae, mse, rmse, r2 = evaluate_regression(
+        y_test,
+        predictions
+    )
+
+    print("MAE:", mae)
+    print("MSE:", mse)
+    print("RMSE:", rmse)
+    print("R²:", r2)
+
+    assert np.isfinite(mae)
+    assert np.isfinite(mse)
+    assert np.isfinite(rmse)
+    assert np.isfinite(r2)
 
     assert mae >= 0
     assert mse >= 0
@@ -831,15 +908,119 @@ def test_evaluate_regression_perfect_prediction():
 
 def test_compare_models():
     """SCA-UT-032"""
-    comparison = compare_models(
-        0.20, 0.10, 0.32, 0.80,  # rf_mae, rf_mse, rf_rmse, rf_r2
-        0.25, 0.15, 0.39, 0.72   # mlp_mae, mlp_mse, mlp_rmse, mlp_r2
+
+    df = prepare_dataset()
+
+    feature_columns = [
+        "PU",
+        "PEU",
+        "FSC",
+        "SP",
+        "TP",
+        "IB"
+    ]
+
+    X = select_features(df, feature_columns)
+    y = select_target(df, "AUB")
+
+    X_train, X_test, y_train, y_test = split_dataset(
+        X,
+        y,
+        test_size=0.20,
+        random_state=1
     )
+
+    # -----------------------------
+    # Random Forest
+    # -----------------------------
+
+    rf_grid = create_rf_gridsearch(
+        create_rf_param_grid(),
+        create_kfold(),
+        n_jobs=1
+    )
+
+    rf_fitted = fit_rf_gridsearch(
+        rf_grid,
+        X_train,
+        y_train
+    )
+
+    rf_model = get_best_rf_model(rf_fitted)
+
+    rf_predictions = predict_rf(
+        rf_model,
+        X_test
+    )
+
+    rf_mae, rf_mse, rf_rmse, rf_r2 = evaluate_regression(
+        y_test,
+        rf_predictions
+    )
+
+    # -----------------------------
+    # MLP
+    # -----------------------------
+
+    scaler, X_train_scaled, X_test_scaled = standardize_features(
+        X_train,
+        X_test
+    )
+
+    mlp_grid = create_mlp_gridsearch(
+        create_mlp_param_grid(),
+        create_kfold(),
+        n_jobs=1
+    )
+
+    mlp_fitted = fit_mlp_gridsearch(
+        mlp_grid,
+        X_train_scaled,
+        y_train
+    )
+
+    mlp_model = get_best_mlp_model(
+        mlp_fitted
+    )
+
+    mlp_predictions = predict_mlp(
+        mlp_model,
+        X_test_scaled
+    )
+
+    mlp_mae, mlp_mse, mlp_rmse, mlp_r2 = evaluate_regression(
+        y_test,
+        mlp_predictions
+    )
+
+    # -----------------------------
+    # Compare
+    # -----------------------------
+
+    comparison = compare_models(
+        rf_mae,
+        rf_mse,
+        rf_rmse,
+        rf_r2,
+        mlp_mae,
+        mlp_mse,
+        mlp_rmse,
+        mlp_r2
+    )
+
+    print(comparison)
 
     assert isinstance(comparison, pd.DataFrame)
     assert comparison.shape == (2, 5)
 
-    expected_columns = ["Model", "MAE", "MSE", "RMSE", "R²"]
+    expected_columns = [
+        "Model",
+        "MAE",
+        "MSE",
+        "RMSE",
+        "R²"
+    ]
+
     assert comparison.columns.tolist() == expected_columns
     assert comparison["Model"].tolist() == ["Random Forest", "MLP"]
 
