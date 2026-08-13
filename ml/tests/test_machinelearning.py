@@ -44,6 +44,11 @@ from ml.scripts.machinelearning import (
     get_best_mlp_model,
     predict_mlp,
     compare_models,
+    run_ttest_aub_gender, 
+    get_aub_by_gender_summary,
+    run_anova_aub_area,
+    get_aub_by_area_summary,
+    get_aub_by_frequency_summary
 )
 
 DATASET_PATH = "ml/datasets/S-COMMERCE_GenZ_UniversityStudent_757_DIB.csv"
