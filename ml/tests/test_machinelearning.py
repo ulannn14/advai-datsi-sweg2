@@ -11,6 +11,8 @@ from ml.scripts.preprocessing import (
     load_dataset,
     drop_columns,
     compute_composite_score,
+    get_construct_descriptives,
+    get_construct_correlation_matrix,
 )
 
 from ml.scripts.machinelearning import (
@@ -1020,16 +1022,7 @@ def test_compare_models():
     ]
 
     assert comparison.columns.tolist() == expected_columns
-
-    assert comparison["Model"].tolist() == [
-        "Random Forest",
-        "MLP"
-    ]
-
-    assert comparison["MAE"].notna().all()
-    assert comparison["MSE"].notna().all()
-    assert comparison["RMSE"].notna().all()
-    assert comparison["R²"].notna().all()
+    assert comparison["Model"].tolist() == ["Random Forest", "MLP"]
 
 # ==========================================================
 # EDA UNIT TESTS

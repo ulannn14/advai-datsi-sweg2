@@ -4,6 +4,9 @@ import pytest
 
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.neural_network import MLPRegressor
+from sklearn.model_selection import GridSearchCV
 
 from ml.scripts.preprocessing import (
     load_dataset,
@@ -15,6 +18,10 @@ from ml.scripts.preprocessing import (
     find_duplicates,
     validate_unique_values,
     compute_composite_score,
+    get_gender_distribution,
+    get_income_distribution,
+    get_area_distribution,
+    get_frequency_distribution,
 )
 
 from ml.scripts.clustering import (
@@ -31,10 +38,6 @@ from ml.scripts.clustering import (
 )
 
 from ml.scripts.machinelearning import (
-    get_gender_distribution,
-    get_income_distribution,
-    get_area_distribution,
-    get_frequency_distribution,
     get_construct_descriptives,
     get_construct_correlation_matrix,
     get_aub_by_gender_summary,
@@ -42,7 +45,6 @@ from ml.scripts.machinelearning import (
     get_aub_by_area_summary,
     run_anova_aub_area,
     get_aub_by_frequency_summary,
-    
     select_features as ml_select_features,
     select_target,
     split_dataset,
@@ -51,13 +53,16 @@ from ml.scripts.machinelearning import (
     create_rf_param_grid,
     create_rf_gridsearch,
     fit_rf_gridsearch,
+    get_best_rf_params,
     get_best_rf_model,
     predict_rf,
+    summarize_rf_results,
     evaluate_regression,
     create_mlp_param_grid,
     create_mlp_gridsearch,
     fit_mlp_gridsearch,
     get_best_mlp_model,
+    get_best_mlp_cv_mse,
     predict_mlp,
     compare_models,
 )
@@ -1075,13 +1080,12 @@ def test_clustering_pipeline():
 def test_machine_learning_pipeline():
     """
     SCT-003
-
-    End-to-end integration test for the machine learning
-    predictive modeling pipeline (Random Forest and MLP).
+    Extensive end-to-end integration test for the machine 
+    learning predictive modeling pipeline (Random Forest and MLP).
     """
 
     # =====================================================
-    # 1. PREPROCESSING (Integration)
+    # PREPROCESSING
     # =====================================================
     df = load_dataset(DATASET_PATH)
     df = drop_columns(df, ["Job", "PEU4"])
@@ -1100,55 +1104,123 @@ def test_machine_learning_pipeline():
         df = compute_composite_score(df, items, construct)
 
     # =====================================================
-    # 2. FEATURE & TARGET SELECTION
+    # FEATURE & TARGET SELECTION
     # =====================================================
     X = ml_select_features(df, FEATURES)
     y = select_target(df, "AUB")
 
+    assert isinstance(X, pd.DataFrame)
+    assert X.shape == (757, 6)
+    assert X.columns.tolist() == FEATURES
+    
+    assert isinstance(y, pd.Series)
+    assert len(y) == 757
+    assert y.name == "AUB"
+
     # =====================================================
-    # 3. DATASET PARTITIONING & SCALING
+    # DATASET PARTITIONING & SCALING
     # =====================================================
     X_train, X_test, y_train, y_test = split_dataset(
         X, y, test_size=0.20, random_state=1
     )
 
+    assert X_train.shape == (605, 6)
+    assert X_test.shape == (152, 6)
+    assert len(y_train) == 605
+    assert len(y_test) == 152
+
     scaler, X_train_scaled, X_test_scaled = ml_standardize_features(
         X_train, X_test
     )
 
+    assert X_train_scaled.shape == X_train.shape
+    assert X_test_scaled.shape == X_test.shape
+    assert np.allclose(X_train_scaled.mean(axis=0), 0, atol=1e-7)
+    assert np.allclose(X_train_scaled.std(axis=0), 1, atol=1e-7)
+
     kf = create_kfold(n_splits=10, shuffle=True, random_state=1)
+    assert kf.get_n_splits() == 10
+    assert kf.shuffle is True
 
     # =====================================================
-    # 4. RANDOM FOREST PIPELINE
+    # RANDOM FOREST
     # =====================================================
-    rf_grid = create_rf_gridsearch(create_rf_param_grid(), kf, n_jobs=1)
+    rf_param_grid = create_rf_param_grid()
+    assert "n_estimators" in rf_param_grid
+    assert "max_depth" in rf_param_grid
+
+    rf_grid = create_rf_gridsearch(rf_param_grid, kf, n_jobs=1)
+    assert isinstance(rf_grid, GridSearchCV)
+    assert isinstance(rf_grid.estimator, RandomForestRegressor)
+
     rf_fitted = fit_rf_gridsearch(rf_grid, X_train, y_train)
+    assert hasattr(rf_fitted, "best_estimator_")
+    assert hasattr(rf_fitted, "best_params_")
+
+    rf_best_params, rf_best_mse = get_best_rf_params(rf_fitted)
+    assert isinstance(rf_best_params, dict)
+    assert rf_best_mse >= 0
+
+    rf_summary = summarize_rf_results(rf_fitted)
+    assert isinstance(rf_summary, pd.DataFrame)
+    assert "rank_test_score" in rf_summary.columns
+
     rf_model = get_best_rf_model(rf_fitted)
+    assert isinstance(rf_model, RandomForestRegressor)
+
     rf_predictions = predict_rf(rf_model, X_test)
+    assert isinstance(rf_predictions, np.ndarray)
+    assert len(rf_predictions) == len(y_test)
+
     rf_mae, rf_mse, rf_rmse, rf_r2 = evaluate_regression(y_test, rf_predictions)
 
     # =====================================================
-    # 5. MLP PIPELINE
+    # MLP
     # =====================================================
-    mlp_grid = create_mlp_gridsearch(create_mlp_param_grid(), kf, n_jobs=1)
+    mlp_param_grid = create_mlp_param_grid()
+    assert "hidden_layer_sizes" in mlp_param_grid
+    assert "learning_rate_init" in mlp_param_grid
+
+    mlp_grid = create_mlp_gridsearch(mlp_param_grid, kf, n_jobs=1)
+    assert isinstance(mlp_grid, GridSearchCV)
+    assert isinstance(mlp_grid.estimator, MLPRegressor)
+
     mlp_fitted = fit_mlp_gridsearch(mlp_grid, X_train_scaled, y_train)
+    assert hasattr(mlp_fitted, "best_estimator_")
+    assert hasattr(mlp_fitted, "best_params_")
+
+    mlp_best_cv_mse = get_best_mlp_cv_mse(mlp_fitted)
+    assert mlp_best_cv_mse >= 0
+
     mlp_model = get_best_mlp_model(mlp_fitted)
+    assert isinstance(mlp_model, MLPRegressor)
+
     mlp_predictions = predict_mlp(mlp_model, X_test_scaled)
+    assert isinstance(mlp_predictions, np.ndarray)
+    assert len(mlp_predictions) == len(y_test)
+
     mlp_mae, mlp_mse, mlp_rmse, mlp_r2 = evaluate_regression(y_test, mlp_predictions)
 
     # =====================================================
-    # 6. PIPELINE INTEGRITY ASSERTIONS
+    # MODEL COMPARISON
     # =====================================================
     comparison = compare_models(
         rf_mae, rf_mse, rf_rmse, rf_r2,
         mlp_mae, mlp_mse, mlp_rmse, mlp_r2
     )
 
+    assert isinstance(comparison, pd.DataFrame)
     assert comparison.shape == (2, 5)
     assert comparison["Model"].tolist() == ["Random Forest", "MLP"]
+    assert comparison["MAE"].notna().all()
+    assert comparison["MSE"].notna().all()
+    assert comparison["RMSE"].notna().all()
+    assert comparison["R²"].notna().all()
 
-    # Verify models maintain established performance baseline
+    # Verify models maintain the specific established performance baseline
     assert rf_r2 > 0.70
     assert mlp_r2 > 0.65
     assert rf_rmse < 0.45
     assert mlp_rmse < 0.45
+    assert rf_mae >= 0
+    assert mlp_mae >= 0
