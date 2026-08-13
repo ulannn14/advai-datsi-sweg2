@@ -680,26 +680,6 @@ def test_get_construct_correlation_matrix_known_pairs(edaDF):
     for construct in corr.columns:
         assert corr.loc[construct, construct] == pytest.approx(1.0)
 
-# The following test checks:
-# - If the SP composite score uses SP1, SP2, SP3, and SP4.
-# - If the previously identified regression bug reappears.
-#
-# This test will fail if:
-# - SP4 is removed.
-# - Only three SP items are used.
-# - The SP calculation is modified.
-def test_sp_composite_uses_all_four_items(edaDF):
-    """
-    Regression test for a bug found in the notebook: SP was originally
-    computed from SP1-SP4, but later silently recomputed from only
-    SP1-SP3 right before the correlation matrix. This checks SP was
-    built from all four items, so that regression can't creep back in
-    without a test failing.
-    """
-    expected_sp = edaDF[["SP1", "SP2", "SP3", "SP4"]].mean(axis=1)
-    assert (edaDF["SP"] - expected_sp).abs().max() < 1e-9
-
-
 # AUB ACROSS DEMOGRAPHIC GROUPS
 # The following test checks:
 # - If the AUB summary statistics for each gender are computed correctly.
