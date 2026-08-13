@@ -362,8 +362,8 @@ def run_preprocessing(
         "FSC": ["FSC1", "FSC2", "FSC3"],
         "SP": ["SP1", "SP2", "SP3", "SP4"],
         "TP": ["TP1", "TP2", "TP3"],
-        "IB": ["IB1", "IB2", "IB3"],
-        "AUB": ["AUB1", "AUB2", "AUB3"],
+        "IB": ["IB1", "IB2", "IB3", "IB4"],
+        "AUB": ["AUB1", "AUB2", "AUB3", "AUB4"],
     }
 
     for construct, columns in composite_scores.items():
