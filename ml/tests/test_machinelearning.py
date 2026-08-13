@@ -19,6 +19,15 @@ from ml.scripts.machinelearning import (
     split_dataset,
     create_kfold,
     standardize_features,
+
+    get_construct_descriptives,
+    get_construct_correlation_matrix,
+    get_aub_by_gender_summary,
+    run_ttest_aub_gender,
+    get_aub_by_area_summary,
+    run_anova_aub_area,
+    get_aub_by_frequency_summary,
+
     create_rf_param_grid,
     create_rf_gridsearch,
     fit_rf_gridsearch,
@@ -67,7 +76,6 @@ def prepare_dataset():
         df = compute_composite_score(df, cols, new_col)
 
     return df
-
 
 # ==========================================================
 # MODULE 1 - FEATURE SELECTION
@@ -298,10 +306,19 @@ def test_create_rf_gridsearch():
 def test_fit_rf_gridsearch():
     """SCA-UT-018"""
 
-    X, y = make_regression(
-        n_samples=80,
-        n_features=6,
-        noise=0.1,
+    df = prepare_dataset()
+
+    X = select_features(
+        df,
+        ["PU", "PEU", "FSC", "SP", "TP", "IB"]
+    )
+
+    y = select_target(df, "AUB")
+
+    X_train, X_test, y_train, y_test = split_dataset(
+        X,
+        y,
+        test_size=0.20,
         random_state=1
     )
 
@@ -313,23 +330,24 @@ def test_fit_rf_gridsearch():
         "min_samples_leaf": [1]
     }
 
-    kf = create_kfold()
-
     grid = create_rf_gridsearch(
         param_grid,
-        kf,
+        create_kfold(),
         n_jobs=1
     )
 
     fitted = fit_rf_gridsearch(
         grid,
-        X,
-        y
+        X_train,
+        y_train
     )
 
     print("RF GridSearch fitted.")
+    print("Best parameters:", fitted.best_params_)
 
     assert hasattr(fitted, "best_estimator_")
+    assert hasattr(fitted, "best_params_")
+    assert hasattr(fitted, "best_score_")
 
 
 def test_get_best_rf_params():
@@ -457,26 +475,43 @@ def test_get_best_rf_model():
 def test_predict_rf():
     """SCA-UT-022"""
 
-    X, y = make_regression(
-        n_samples=80,
-        n_features=6,
+    df = prepare_dataset()
+
+    X = select_features(
+        df,
+        ["PU", "PEU", "FSC", "SP", "TP", "IB"]
+    )
+
+    y = select_target(df, "AUB")
+
+    X_train, X_test, y_train, y_test = split_dataset(
+        X,
+        y,
+        test_size=0.20,
         random_state=1
     )
 
     model = RandomForestRegressor(
+        n_estimators=10,
         random_state=1
     )
 
-    model.fit(X, y)
+    model.fit(
+        X_train,
+        y_train
+    )
 
     predictions = predict_rf(
         model,
-        X
+        X_test
     )
 
+    print("First 5 RF predictions:")
     print(predictions[:5])
 
-    assert len(predictions) == len(X)
+    assert isinstance(predictions, np.ndarray)
+    assert len(predictions) == len(y_test)
+    assert np.isfinite(predictions).all()
 
 # ==========================================================
 # MODULE 8 - MLP REGRESSOR
@@ -800,10 +835,52 @@ def test_predict_mlp():
 
 def test_evaluate_regression():
     """SCA-UT-030"""
-    y_true = np.array([1, 2, 3, 4, 5])
-    y_pred = np.array([1.1, 2.1, 2.9, 3.8, 5.2])
 
-    mae, mse, rmse, r2 = evaluate_regression(y_true, y_pred)
+    df = prepare_dataset()
+
+    X = select_features(
+        df,
+        ["PU", "PEU", "FSC", "SP", "TP", "IB"]
+    )
+
+    y = select_target(df, "AUB")
+
+    X_train, X_test, y_train, y_test = split_dataset(
+        X,
+        y,
+        test_size=0.20,
+        random_state=1
+    )
+
+    model = RandomForestRegressor(
+        n_estimators=10,
+        random_state=1
+    )
+
+    model.fit(
+        X_train,
+        y_train
+    )
+
+    predictions = predict_rf(
+        model,
+        X_test
+    )
+
+    mae, mse, rmse, r2 = evaluate_regression(
+        y_test,
+        predictions
+    )
+
+    print("MAE:", mae)
+    print("MSE:", mse)
+    print("RMSE:", rmse)
+    print("R²:", r2)
+
+    assert np.isfinite(mae)
+    assert np.isfinite(mse)
+    assert np.isfinite(rmse)
+    assert np.isfinite(r2)
 
     assert mae >= 0
     assert mse >= 0
@@ -829,14 +906,343 @@ def test_evaluate_regression_perfect_prediction():
 
 def test_compare_models():
     """SCA-UT-032"""
-    comparison = compare_models(
-        0.20, 0.10, 0.32, 0.80,  # rf_mae, rf_mse, rf_rmse, rf_r2
-        0.25, 0.15, 0.39, 0.72   # mlp_mae, mlp_mse, mlp_rmse, mlp_r2
+
+    df = prepare_dataset()
+
+    feature_columns = [
+        "PU",
+        "PEU",
+        "FSC",
+        "SP",
+        "TP",
+        "IB"
+    ]
+
+    X = select_features(df, feature_columns)
+    y = select_target(df, "AUB")
+
+    X_train, X_test, y_train, y_test = split_dataset(
+        X,
+        y,
+        test_size=0.20,
+        random_state=1
     )
+
+    # -----------------------------
+    # Random Forest
+    # -----------------------------
+
+    rf_grid = create_rf_gridsearch(
+        create_rf_param_grid(),
+        create_kfold(),
+        n_jobs=1
+    )
+
+    rf_fitted = fit_rf_gridsearch(
+        rf_grid,
+        X_train,
+        y_train
+    )
+
+    rf_model = get_best_rf_model(rf_fitted)
+
+    rf_predictions = predict_rf(
+        rf_model,
+        X_test
+    )
+
+    rf_mae, rf_mse, rf_rmse, rf_r2 = evaluate_regression(
+        y_test,
+        rf_predictions
+    )
+
+    # -----------------------------
+    # MLP
+    # -----------------------------
+
+    scaler, X_train_scaled, X_test_scaled = standardize_features(
+        X_train,
+        X_test
+    )
+
+    mlp_grid = create_mlp_gridsearch(
+        create_mlp_param_grid(),
+        create_kfold(),
+        n_jobs=1
+    )
+
+    mlp_fitted = fit_mlp_gridsearch(
+        mlp_grid,
+        X_train_scaled,
+        y_train
+    )
+
+    mlp_model = get_best_mlp_model(
+        mlp_fitted
+    )
+
+    mlp_predictions = predict_mlp(
+        mlp_model,
+        X_test_scaled
+    )
+
+    mlp_mae, mlp_mse, mlp_rmse, mlp_r2 = evaluate_regression(
+        y_test,
+        mlp_predictions
+    )
+
+    # -----------------------------
+    # Compare
+    # -----------------------------
+
+    comparison = compare_models(
+        rf_mae,
+        rf_mse,
+        rf_rmse,
+        rf_r2,
+        mlp_mae,
+        mlp_mse,
+        mlp_rmse,
+        mlp_r2
+    )
+
+    print(comparison)
 
     assert isinstance(comparison, pd.DataFrame)
     assert comparison.shape == (2, 5)
 
-    expected_columns = ["Model", "MAE", "MSE", "RMSE", "R²"]
+    expected_columns = [
+        "Model",
+        "MAE",
+        "MSE",
+        "RMSE",
+        "R²"
+    ]
+
     assert comparison.columns.tolist() == expected_columns
-    assert comparison["Model"].tolist() == ["Random Forest", "MLP"]
+
+    assert comparison["Model"].tolist() == [
+        "Random Forest",
+        "MLP"
+    ]
+
+    assert comparison["MAE"].notna().all()
+    assert comparison["MSE"].notna().all()
+    assert comparison["RMSE"].notna().all()
+    assert comparison["R²"].notna().all()
+
+# ==========================================================
+# EDA UNIT TESTS
+# ==========================================================
+
+def test_get_construct_descriptives():
+    """SCA-UT-033"""
+
+    df = prepare_dataset()
+
+    result = get_construct_descriptives(df)
+
+    expected_constructs = [
+        "PU",
+        "PEU",
+        "FSC",
+        "SP",
+        "TP",
+        "IB",
+        "AUB"
+    ]
+
+    assert result.columns.tolist() == expected_constructs
+
+    assert result.loc["count"].tolist() == [757] * 7
+
+    assert result.loc["mean", "PU"] == pytest.approx(
+        3.77, abs=0.01
+    )
+
+    assert result.loc["mean", "PEU"] == pytest.approx(
+        3.70, abs=0.01
+    )
+
+    assert result.loc["mean", "FSC"] == pytest.approx(
+        3.73, abs=0.01
+    )
+
+    assert result.loc["mean", "SP"] == pytest.approx(
+        3.60, abs=0.01
+    )
+
+    assert result.loc["mean", "TP"] == pytest.approx(
+        3.56, abs=0.01
+    )
+
+    assert result.loc["mean", "IB"] == pytest.approx(
+        3.61, abs=0.01
+    )
+
+    assert result.loc["mean", "AUB"] == pytest.approx(
+        3.68, abs=0.01
+    )
+
+def test_get_construct_correlation_matrix():
+    """SCA-UT-034"""
+
+    df = prepare_dataset()
+
+    corr = get_construct_correlation_matrix(df)
+
+    expected_constructs = [
+        "PU",
+        "PEU",
+        "FSC",
+        "SP",
+        "TP",
+        "IB",
+        "AUB"
+    ]
+
+    assert corr.index.tolist() == expected_constructs
+    assert corr.columns.tolist() == expected_constructs
+
+    assert corr.loc["PU", "PEU"] == pytest.approx(
+        0.788226, abs=0.001
+    )
+
+    assert corr.loc["PU", "FSC"] == pytest.approx(
+        0.804070, abs=0.001
+    )
+
+    assert corr.loc["PEU", "AUB"] == pytest.approx(
+        0.785858, abs=0.001
+    )
+
+    assert corr.loc["SP", "IB"] == pytest.approx(
+        0.644206, abs=0.001
+    )
+
+    assert corr.loc["TP", "AUB"] == pytest.approx(
+        0.662269, abs=0.001
+    )
+
+    assert corr.loc["IB", "AUB"] == pytest.approx(
+        0.683213, abs=0.001
+    )
+
+    # Diagonal should always be 1
+    for construct in corr.columns:
+        assert corr.loc[construct, construct] == pytest.approx(1.0)
+
+def test_get_aub_by_gender_summary():
+    """SCA-UT-035"""
+
+    df = prepare_dataset()
+
+    result = get_aub_by_gender_summary(df)
+
+    assert result.loc["Male", "count"] == 167
+    assert result.loc["Female", "count"] == 588
+
+    assert result.loc["Male", "mean"] == pytest.approx(
+        3.66, abs=0.01
+    )
+
+    assert result.loc["Female", "mean"] == pytest.approx(
+        3.69, abs=0.01
+    )
+
+    assert result.loc["Male", "median"] == pytest.approx(
+        3.75
+    )
+
+    assert result.loc["Female", "median"] == pytest.approx(
+        4.00
+    )
+
+    assert result.loc["Male", "std"] == pytest.approx(
+        0.79, abs=0.01
+    )
+
+    assert result.loc["Female", "std"] == pytest.approx(
+        0.67, abs=0.01
+    )
+
+def test_run_ttest_aub_gender():
+    """SCA-UT-036"""
+
+    df = prepare_dataset()
+
+    t_stat, p_value = run_ttest_aub_gender(df)
+
+    assert t_stat == pytest.approx(
+        -0.417, abs=0.01
+    )
+
+    assert p_value == pytest.approx(
+        0.677, abs=0.01
+    )
+
+    assert p_value > 0.05
+
+def test_get_aub_by_area_summary():
+    """SCA-UT-037"""
+
+    df = prepare_dataset()
+
+    result = get_aub_by_area_summary(df)
+
+    assert result.loc["Urban", "count"] == 461
+    assert result.loc["Suburban", "count"] == 74
+    assert result.loc["Rural", "count"] == 222
+
+    assert result.loc["Urban", "mean"] == pytest.approx(
+        3.71, abs=0.01
+    )
+
+    assert result.loc["Suburban", "mean"] == pytest.approx(
+        3.64, abs=0.01
+    )
+
+    assert result.loc["Rural", "mean"] == pytest.approx(
+        3.62, abs=0.01
+    )
+
+    assert result.loc["Urban", "median"] == pytest.approx(
+        4.00
+    )
+
+    assert result.loc["Suburban", "median"] == pytest.approx(
+        3.75
+    )
+
+    assert result.loc["Rural", "median"] == pytest.approx(
+        3.75
+    )
+
+def test_run_anova_aub_area():
+    """SCA-UT-038"""
+
+    df = prepare_dataset()
+
+    f_stat, p_value = run_anova_aub_area(df)
+
+    assert f_stat == pytest.approx(
+        1.4681, abs=0.01
+    )
+
+    assert p_value == pytest.approx(
+        0.2310, abs=0.01
+    )
+
+    assert p_value > 0.05
+
+def test_get_aub_by_frequency_summary():
+    """SCA-UT-039"""
+
+    df = prepare_dataset()
+
+    result = get_aub_by_frequency_summary(df)
+
+    assert result.loc["Daily", "count"] == 725
+    assert result.loc["Weekly", "count"] == 14
+    assert result.loc["Monthly", "count"] == 7
+    assert result.loc["Rarely", "count"] == 11
