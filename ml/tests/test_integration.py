@@ -15,17 +15,6 @@ from ml.scripts.preprocessing import (
     find_duplicates,
     validate_unique_values,
     compute_composite_score,
-    get_gender_distribution,
-    get_income_distribution,
-    get_area_distribution,
-    get_frequency_distribution,
-    get_construct_descriptives,
-    get_construct_correlation_matrix,
-    get_aub_by_gender_summary,
-    run_ttest_aub_gender,
-    get_aub_by_area_summary,
-    run_anova_aub_area,
-    get_aub_by_frequency_summary,
 )
 
 from ml.scripts.clustering import (
@@ -39,6 +28,38 @@ from ml.scripts.clustering import (
     perform_shapiro_test,
     perform_kruskal_wallis,
     perform_dunn_test,
+)
+
+from ml.scripts.machinelearning import (
+    get_gender_distribution,
+    get_income_distribution,
+    get_area_distribution,
+    get_frequency_distribution,
+    get_construct_descriptives,
+    get_construct_correlation_matrix,
+    get_aub_by_gender_summary,
+    run_ttest_aub_gender,
+    get_aub_by_area_summary,
+    run_anova_aub_area,
+    get_aub_by_frequency_summary,
+    
+    select_features as ml_select_features,
+    select_target,
+    split_dataset,
+    create_kfold,
+    standardize_features as ml_standardize_features,
+    create_rf_param_grid,
+    create_rf_gridsearch,
+    fit_rf_gridsearch,
+    get_best_rf_model,
+    predict_rf,
+    evaluate_regression,
+    create_mlp_param_grid,
+    create_mlp_gridsearch,
+    fit_mlp_gridsearch,
+    get_best_mlp_model,
+    predict_mlp,
+    compare_models,
 )
 
 DATASET_PATH = (
@@ -1050,3 +1071,84 @@ def test_clustering_pipeline():
     assert result.loc[0, 3] < 0.05
     assert result.loc[1, 3] < 0.05
     assert result.loc[2, 3] < 0.05
+
+def test_machine_learning_pipeline():
+    """
+    SCT-003
+
+    End-to-end integration test for the machine learning
+    predictive modeling pipeline (Random Forest and MLP).
+    """
+
+    # =====================================================
+    # 1. PREPROCESSING (Integration)
+    # =====================================================
+    df = load_dataset(DATASET_PATH)
+    df = drop_columns(df, ["Job", "PEU4"])
+
+    composites = {
+        "PU": ["PU1", "PU2", "PU3", "PU4"],
+        "PEU": ["PEU1", "PEU2", "PEU3"],
+        "FSC": ["FSC1", "FSC2", "FSC3"],
+        "SP": ["SP1", "SP2", "SP3", "SP4"],
+        "TP": ["TP1", "TP2", "TP3"],
+        "IB": ["IB1", "IB2", "IB3", "IB4"],
+        "AUB": ["AUB1", "AUB2", "AUB3", "AUB4"],
+    }
+
+    for construct, items in composites.items():
+        df = compute_composite_score(df, items, construct)
+
+    # =====================================================
+    # 2. FEATURE & TARGET SELECTION
+    # =====================================================
+    X = ml_select_features(df, FEATURES)
+    y = select_target(df, "AUB")
+
+    # =====================================================
+    # 3. DATASET PARTITIONING & SCALING
+    # =====================================================
+    X_train, X_test, y_train, y_test = split_dataset(
+        X, y, test_size=0.20, random_state=1
+    )
+
+    scaler, X_train_scaled, X_test_scaled = ml_standardize_features(
+        X_train, X_test
+    )
+
+    kf = create_kfold(n_splits=10, shuffle=True, random_state=1)
+
+    # =====================================================
+    # 4. RANDOM FOREST PIPELINE
+    # =====================================================
+    rf_grid = create_rf_gridsearch(create_rf_param_grid(), kf, n_jobs=1)
+    rf_fitted = fit_rf_gridsearch(rf_grid, X_train, y_train)
+    rf_model = get_best_rf_model(rf_fitted)
+    rf_predictions = predict_rf(rf_model, X_test)
+    rf_mae, rf_mse, rf_rmse, rf_r2 = evaluate_regression(y_test, rf_predictions)
+
+    # =====================================================
+    # 5. MLP PIPELINE
+    # =====================================================
+    mlp_grid = create_mlp_gridsearch(create_mlp_param_grid(), kf, n_jobs=1)
+    mlp_fitted = fit_mlp_gridsearch(mlp_grid, X_train_scaled, y_train)
+    mlp_model = get_best_mlp_model(mlp_fitted)
+    mlp_predictions = predict_mlp(mlp_model, X_test_scaled)
+    mlp_mae, mlp_mse, mlp_rmse, mlp_r2 = evaluate_regression(y_test, mlp_predictions)
+
+    # =====================================================
+    # 6. PIPELINE INTEGRITY ASSERTIONS
+    # =====================================================
+    comparison = compare_models(
+        rf_mae, rf_mse, rf_rmse, rf_r2,
+        mlp_mae, mlp_mse, mlp_rmse, mlp_r2
+    )
+
+    assert comparison.shape == (2, 5)
+    assert comparison["Model"].tolist() == ["Random Forest", "MLP"]
+
+    # Verify models maintain established performance baseline
+    assert rf_r2 > 0.70
+    assert mlp_r2 > 0.65
+    assert rf_rmse < 0.45
+    assert mlp_rmse < 0.45
