@@ -4,7 +4,6 @@ import pytest
 
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
-from scipy.stats import shapiro, kruskal
 
 from ml.scripts.preprocessing import (
     load_dataset,
