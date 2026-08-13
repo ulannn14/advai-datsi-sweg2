@@ -22,6 +22,13 @@ from ml.scripts.preprocessing import (
     get_income_distribution,
     get_area_distribution,
     get_frequency_distribution,
+    get_construct_descriptives,
+    get_construct_correlation_matrix,
+    get_aub_by_gender_summary,
+    run_ttest_aub_gender,
+    get_aub_by_area_summary,
+    run_anova_aub_area,
+    get_aub_by_frequency_summary,
 )
 
 from ml.scripts.clustering import (
@@ -38,13 +45,6 @@ from ml.scripts.clustering import (
 )
 
 from ml.scripts.machinelearning import (
-    get_construct_descriptives,
-    get_construct_correlation_matrix,
-    get_aub_by_gender_summary,
-    run_ttest_aub_gender,
-    get_aub_by_area_summary,
-    run_anova_aub_area,
-    get_aub_by_frequency_summary,
     select_features as ml_select_features,
     select_target,
     split_dataset,
@@ -148,15 +148,6 @@ EXPECTED_UNIQUE_VALUES = [
     [1, 2, 3, 4, 5],
 ]
 
-COMPOSITES = {
-    "PU": ["PU1", "PU2", "PU3", "PU4"],
-    "PEU": ["PEU1", "PEU2", "PEU3"],
-    "FSC": ["FSC1", "FSC2", "FSC3"],
-    "SP": ["SP1", "SP2", "SP3", "SP4"],
-    "TP": ["TP1", "TP2", "TP3"],
-    "IB": ["IB1", "IB2", "IB3", "IB4"],
-    "AUB": ["AUB1", "AUB2", "AUB3", "AUB4"],
-}
 
 # The following integration test checks:
 # - If the complete preprocessing and EDA pipeline reproduces
