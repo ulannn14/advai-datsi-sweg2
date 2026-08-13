@@ -7,13 +7,24 @@ data cleaning, and feature engineering.
 Project:
 Social Commerce Adoption Among Generation Z University Students in Vietnam
 """
-
 import pandas as pd
+from scipy import stats
 
-"""
-comment
-"""
+GENDER_LABELS = {1: "Male", 2: "Female", 3: "Different"}
 
+INCOME_LABELS = {
+    1: "< $100",
+    2: "$100 - $200",
+    3: "$200 - $300",
+    4: "$300 - $400",
+    5: "> $400",
+}
+
+AREA_LABELS = {1: "Urban", 2: "Suburban", 3: "Rural"}
+
+FREQUENCY_LABELS = {1: "Daily", 2: "Weekly", 3: "Monthly", 4: "Rarely Used"}
+
+CONSTRUCTS = ["PU", "PEU", "FSC", "SP", "TP", "IB", "AUB"]
 
 # ==========================================================
 # MODULE 1 - DATASET LOADING
@@ -224,3 +235,95 @@ def compute_composite_score(df, columns, new_column):
     df[new_column] = df[columns].mean(axis=1)
 
     return df
+
+# ==========================================================
+# MODULE 5 - EXPLORATORY DATA ANALYSIS (EDA)
+# ==========================================================
+
+def get_gender_distribution(df):
+    """Counts of respondents per Gender category, labeled."""
+    counts = df["Gender"].value_counts().sort_index()
+    counts.index = counts.index.map(GENDER_LABELS)
+    return counts
+
+
+def get_income_distribution(df):
+    """Counts of respondents per Income category, labeled."""
+    counts = df["Income"].value_counts().sort_index()
+    counts.index = counts.index.map(INCOME_LABELS)
+    return counts
+
+
+def get_area_distribution(df):
+    """Counts of respondents per residential Area, labeled."""
+    counts = df["Area"].value_counts().sort_index()
+    counts.index = counts.index.map(AREA_LABELS)
+    return counts
+
+
+def get_frequency_distribution(df):
+    """Counts of respondents per social media usage Frequency, labeled."""
+    counts = df["Frequently"].value_counts().sort_index()
+    counts.index = counts.index.map(FREQUENCY_LABELS)
+    return counts
+
+
+# CONSTRUCT DESCRIPTIVES / CORRELATIONS
+def get_construct_descriptives(df, constructs=CONSTRUCTS):
+    """Descriptive statistics (count/mean/std/etc.) for the composite constructs."""
+    return df[constructs].describe()
+
+
+def get_construct_correlation_matrix(df, constructs=CONSTRUCTS):
+    """Pearson correlation matrix between the composite constructs."""
+    return df[constructs].corr(method="pearson")
+
+
+# AUB ACROSS DEMOGRAPHIC GROUPS
+def get_aub_by_gender_summary(df, exclude_other=True):
+    """AUB count/mean/median/std by gender (Male vs Female only, by default)."""
+    data = df[df["Gender"] != 3] if exclude_other else df
+
+    summary = data.groupby("Gender")["AUB"].agg(["count", "mean", "median", "std"])
+    summary.index = summary.index.map({1: "Male", 2: "Female"})
+
+    return summary
+
+
+def run_ttest_aub_gender(df):
+    """Welch's t-test comparing AUB between male and female respondents."""
+    data = df[df["Gender"] != 3]
+
+    male = data[data["Gender"] == 1]["AUB"]
+    female = data[data["Gender"] == 2]["AUB"]
+
+    t_stat, p_value = stats.ttest_ind(male, female, equal_var=False)
+
+    return t_stat, p_value
+
+
+def get_aub_by_area_summary(df):
+    """AUB count/mean/median/std by residential area."""
+    summary = df.groupby("Area")["AUB"].agg(["count", "mean", "median", "std"])
+    summary.index = summary.index.map(AREA_LABELS)
+
+    return summary
+
+
+def run_anova_aub_area(df):
+    """One-way ANOVA comparing AUB across Urban/Suburban/Rural respondents."""
+    urban = df[df["Area"] == 1]["AUB"]
+    suburban = df[df["Area"] == 2]["AUB"]
+    rural = df[df["Area"] == 3]["AUB"]
+
+    f_stat, p_value = stats.f_oneway(urban, suburban, rural)
+
+    return f_stat, p_value
+
+
+def get_aub_by_frequency_summary(df):
+    """AUB count/mean/median/std by social media usage frequency."""
+    summary = df.groupby("Frequently")["AUB"].agg(["count", "mean", "median", "std"])
+    summary.index = summary.index.map({1: "Daily", 2: "Weekly", 3: "Monthly", 4: "Rarely Used"})
+
+    return summary
