@@ -35,3 +35,4 @@ jobs:
           python -m pytest ml/tests/test_preprocessing.py -v
           python -m pytest ml/tests/test_clustering.py -v
           python -m pytest ml/tests/test_machinelearning.py -v
+          python -m pytest ml/tests/test_integration.py -v
