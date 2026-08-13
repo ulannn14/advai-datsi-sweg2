@@ -327,3 +327,50 @@ def get_aub_by_frequency_summary(df):
     summary.index = summary.index.map({1: "Daily", 2: "Weekly", 3: "Monthly", 4: "Rarely Used"})
 
     return summary
+
+
+# ==========================================================
+# COMPLETE PREPROCESSING PIPELINE FOR 02 AND 03
+# ==========================================================
+def run_preprocessing(
+    file_path="../datasets/S-COMMERCE_GenZ_UniversityStudent_757_DIB.csv"
+):
+    """
+    Execute the complete preprocessing pipeline.
+
+    Parameters
+    ----------
+    file_path : str
+        Path to the dataset.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Fully preprocessed dataset.
+    """
+
+    # Load dataset
+    df = load_dataset(file_path)
+
+    # Remove unnecessary variables
+    df = drop_columns(df, ["PEU4", "Job"])
+
+    # Create composite scores
+    composite_scores = {
+        "PU": ["PU1", "PU2", "PU3", "PU4"],
+        "PEU": ["PEU1", "PEU2", "PEU3"],
+        "FSC": ["FSC1", "FSC2", "FSC3"],
+        "SP": ["SP1", "SP2", "SP3", "SP4"],
+        "TP": ["TP1", "TP2", "TP3"],
+        "IB": ["IB1", "IB2", "IB3"],
+        "AUB": ["AUB1", "AUB2", "AUB3"],
+    }
+
+    for construct, columns in composite_scores.items():
+        df = compute_composite_score(
+            df,
+            columns,
+            construct
+        )
+
+    return df
