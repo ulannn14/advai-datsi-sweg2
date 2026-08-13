@@ -364,6 +364,49 @@ def test_evaluate_kmeans_clusters():
         )
     )
 
+    # Expected results from the original notebook.
+    expected_inertia = [
+        2397.3951517810065,
+        1876.6780711816932,
+        1470.371175770248,
+        1289.3260086578698,
+        1194.8825839212625,
+        1138.661553747194,
+        1082.160274964026,
+        1041.3118953265096,
+        995.2666652249214,
+    ]
+
+    expected_silhouette_scores = [
+        0.4357624529557227,
+        0.42533701123564177,
+        0.37747256266114426,
+        0.33290308059903284,
+        0.2913130488967038,
+        0.29138177791986325,
+        0.30602460012945765,
+        0.2930900543684983,
+        0.29391001252620486,
+    ]
+
+    # Verify that the wrapper produces the same
+    # inertia values as the original notebook.
+    np.testing.assert_allclose(
+        inertia,
+        expected_inertia,
+        rtol=1e-5,
+        atol=1e-5
+    )
+
+    # Verify that the wrapper produces the same
+    # silhouette scores as the original notebook.
+    np.testing.assert_allclose(
+        silhouette_scores,
+        expected_silhouette_scores,
+        rtol=1e-5,
+        atol=1e-5
+    )
+
 
 # ==========================================================
 # MODULE 9 - CLUSTERING
@@ -565,6 +608,36 @@ def test_calculate_cluster_profiles():
     assert (
         result["AUB"] <= 5
     ).all()
+
+    # Expected cluster profile values obtained
+    # directly from the original notebook.
+    expected_profiles = pd.DataFrame(
+        [
+            [
+                4.6391752577, 4.5841924399, 4.7079037801, 4.5773195876, 4.4707903780, 4.5257731959, 4.4664948454
+            ],
+            [
+                3.2451550388, 3.1550387597, 3.1020671835, 3.0474806202, 3.0348837209, 3.1715116279, 3.1715116279
+            ],
+            [
+                1.6500000000, 1.5666666667, 1.5833333333, 1.7750000000, 1.4666666667, 1.6625000000, 1.7125000000
+            ],
+            [
+                4.0215968586, 3.9554973822, 4.0200698080, 3.8239528796, 3.7870855148, 3.7676701571, 3.9201570681
+            ],
+        ],
+        index=[0, 1, 2, 3],
+        columns=FEATURES + ["AUB"]
+    )
+
+    # Verify that the wrapper output matches
+    # the values produced by the original notebook.
+    np.testing.assert_allclose(
+        result.values,
+        expected_profiles.values,
+        rtol=1e-5,
+        atol=1e-5
+    )
 
 
 # ==========================================================
@@ -810,10 +883,26 @@ def test_perform_dunn_test():
         result.values.T
     )
 
-    # Verify the reported notebook comparison.
-    assert result.loc[1, 2] == pytest.approx(
-        0.0022,
-        abs=0.0001
+    # Expected Dunn test matrix obtained
+    # from the original notebook output.
+    expected_dunn = pd.DataFrame(
+        [
+            [1.0000, 0.0000, 0.0000, 0.0000],
+            [0.0000, 1.0000, 0.0022, 0.0000],
+            [0.0000, 0.0022, 1.0000, 0.0000],
+            [0.0000, 0.0000, 0.0000, 1.0000],
+        ],
+        index=[0, 1, 2, 3],
+        columns=[0, 1, 2, 3]
+    )
+
+    # Verify that the wrapper output matches
+    # the Dunn test results from the original notebook.
+    np.testing.assert_allclose(
+        result.round(4).values,
+        expected_dunn.values,
+        rtol=1e-5,
+        atol=1e-5
     )
 
     # Verify significant pairwise differences.
