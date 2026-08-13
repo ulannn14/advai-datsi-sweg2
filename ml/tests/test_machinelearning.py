@@ -11,6 +11,8 @@ from ml.scripts.preprocessing import (
     load_dataset,
     drop_columns,
     compute_composite_score,
+    get_construct_descriptives,
+    get_construct_correlation_matrix,
 )
 
 from ml.scripts.machinelearning import (
@@ -840,3 +842,219 @@ def test_compare_models():
     expected_columns = ["Model", "MAE", "MSE", "RMSE", "R²"]
     assert comparison.columns.tolist() == expected_columns
     assert comparison["Model"].tolist() == ["Random Forest", "MLP"]
+
+# ==========================================================
+# EDA UNIT TESTS
+# ==========================================================
+
+def test_get_construct_descriptives():
+    """SCA-UT-033"""
+
+    df = prepare_dataset()
+
+    result = get_construct_descriptives(df)
+
+    expected_constructs = [
+        "PU",
+        "PEU",
+        "FSC",
+        "SP",
+        "TP",
+        "IB",
+        "AUB"
+    ]
+
+    assert result.columns.tolist() == expected_constructs
+
+    assert result.loc["count"].tolist() == [757] * 7
+
+    assert result.loc["mean", "PU"] == pytest.approx(
+        3.77, abs=0.01
+    )
+
+    assert result.loc["mean", "PEU"] == pytest.approx(
+        3.70, abs=0.01
+    )
+
+    assert result.loc["mean", "FSC"] == pytest.approx(
+        3.73, abs=0.01
+    )
+
+    assert result.loc["mean", "SP"] == pytest.approx(
+        3.60, abs=0.01
+    )
+
+    assert result.loc["mean", "TP"] == pytest.approx(
+        3.56, abs=0.01
+    )
+
+    assert result.loc["mean", "IB"] == pytest.approx(
+        3.61, abs=0.01
+    )
+
+    assert result.loc["mean", "AUB"] == pytest.approx(
+        3.68, abs=0.01
+    )
+
+def test_get_construct_correlation_matrix():
+    """SCA-UT-034"""
+
+    df = prepare_dataset()
+
+    corr = get_construct_correlation_matrix(df)
+
+    expected_constructs = [
+        "PU",
+        "PEU",
+        "FSC",
+        "SP",
+        "TP",
+        "IB",
+        "AUB"
+    ]
+
+    assert corr.index.tolist() == expected_constructs
+    assert corr.columns.tolist() == expected_constructs
+
+    assert corr.loc["PU", "PEU"] == pytest.approx(
+        0.788226, abs=0.001
+    )
+
+    assert corr.loc["PU", "FSC"] == pytest.approx(
+        0.804070, abs=0.001
+    )
+
+    assert corr.loc["PEU", "AUB"] == pytest.approx(
+        0.785858, abs=0.001
+    )
+
+    assert corr.loc["SP", "IB"] == pytest.approx(
+        0.644206, abs=0.001
+    )
+
+    assert corr.loc["TP", "AUB"] == pytest.approx(
+        0.662269, abs=0.001
+    )
+
+    assert corr.loc["IB", "AUB"] == pytest.approx(
+        0.683213, abs=0.001
+    )
+
+    # Diagonal should always be 1
+    for construct in corr.columns:
+        assert corr.loc[construct, construct] == pytest.approx(1.0)
+
+def test_get_aub_by_gender_summary():
+    """SCA-UT-035"""
+
+    df = prepare_dataset()
+
+    result = get_aub_by_gender_summary(df)
+
+    assert result.loc["Male", "count"] == 167
+    assert result.loc["Female", "count"] == 588
+
+    assert result.loc["Male", "mean"] == pytest.approx(
+        3.66, abs=0.01
+    )
+
+    assert result.loc["Female", "mean"] == pytest.approx(
+        3.69, abs=0.01
+    )
+
+    assert result.loc["Male", "median"] == pytest.approx(
+        3.75
+    )
+
+    assert result.loc["Female", "median"] == pytest.approx(
+        4.00
+    )
+
+    assert result.loc["Male", "std"] == pytest.approx(
+        0.79, abs=0.01
+    )
+
+    assert result.loc["Female", "std"] == pytest.approx(
+        0.67, abs=0.01
+    )
+
+def test_run_ttest_aub_gender():
+    """SCA-UT-036"""
+
+    df = prepare_dataset()
+
+    t_stat, p_value = run_ttest_aub_gender(df)
+
+    assert t_stat == pytest.approx(
+        -0.417, abs=0.01
+    )
+
+    assert p_value == pytest.approx(
+        0.677, abs=0.01
+    )
+
+    assert p_value > 0.05
+
+def test_get_aub_by_area_summary():
+    """SCA-UT-037"""
+
+    df = prepare_dataset()
+
+    result = get_aub_by_area_summary(df)
+
+    assert result.loc["Urban", "count"] == 461
+    assert result.loc["Suburban", "count"] == 74
+    assert result.loc["Rural", "count"] == 222
+
+    assert result.loc["Urban", "mean"] == pytest.approx(
+        3.71, abs=0.01
+    )
+
+    assert result.loc["Suburban", "mean"] == pytest.approx(
+        3.64, abs=0.01
+    )
+
+    assert result.loc["Rural", "mean"] == pytest.approx(
+        3.62, abs=0.01
+    )
+
+    assert result.loc["Urban", "median"] == pytest.approx(
+        4.00
+    )
+
+    assert result.loc["Suburban", "median"] == pytest.approx(
+        3.75
+    )
+
+    assert result.loc["Rural", "median"] == pytest.approx(
+        3.75
+    )
+
+def test_run_anova_aub_area():
+    """SCA-UT-038"""
+
+    df = prepare_dataset()
+
+    f_stat, p_value = run_anova_aub_area(df)
+
+    assert f_stat == pytest.approx(
+        1.4681, abs=0.01
+    )
+
+    assert p_value == pytest.approx(
+        0.2310, abs=0.01
+    )
+
+    assert p_value > 0.05
+
+def test_get_aub_by_frequency_summary():
+    """SCA-UT-039"""
+
+    df = prepare_dataset()
+
+    result = get_aub_by_frequency_summary(df)
+
+    assert result.loc["Daily", "count"] == 725
+    assert result.loc["Weekly", "count"] == 14
+    assert result.loc["Monthly", "count"] == 7
+    assert result.loc["Rarely", "count"] == 11
