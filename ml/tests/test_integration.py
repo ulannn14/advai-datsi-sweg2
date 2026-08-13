@@ -45,7 +45,31 @@ EXPECTED_COLUMNS = [
     "AUB1", "AUB2", "AUB3", "AUB4",
 ]
 
-
+# The following integration test checks:
+# - If the complete preprocessing and EDA pipeline reproduces the
+#   exact workflow used in the notebook.
+# - If the dataset remains unchanged throughout every processing stage.
+# - If all intermediate outputs match the original analysis.
+#
+# This test will fail if:
+# - The dataset structure changes (rows, columns, or data types).
+# - A column is renamed, removed, or added.
+# - Missing values are introduced.
+# - Duplicate detection changes.
+# - The PEU4 or Job columns are not removed correctly.
+# - A composite score formula is modified.
+# - A questionnaire item used in a composite score is changed or removed.
+# - Any respondent is accidentally removed during preprocessing.
+# - Demographic distributions no longer match the original dataset.
+# - Descriptive statistics are modified.
+# - Correlation values change.
+# - The t-test implementation is modified.
+# - The ANOVA implementation is modified.
+# - The final EDA results no longer match the notebook outputs.
+#
+# In other words, this test verifies that the entire preprocessing and
+# EDA workflow still produces the same research results reported in the
+# original notebook.
 def test_preprocessing_and_eda_pipeline():
     """
     SCT-001
