@@ -199,9 +199,8 @@ def test_create_kfold():
 
     assert kf.random_state == 1
 
-
 # ==========================================================
-# MODULE 5 - STANDARDIZATION
+# MODULE 4 - FEATURE SCALING
 # ==========================================================
 
 def test_standardize_features():
@@ -216,21 +215,26 @@ def test_standardize_features():
 
     y = select_target(df, "AUB")
 
+    # Split the actual dataset
     X_train, X_test, _, _ = split_dataset(
         X,
         y
     )
 
+    # Standardize the actual training/testing data
     scaler, X_train_scaled, X_test_scaled = standardize_features(
         X_train,
         X_test
     )
 
-    print("Scaled training shape:", X_train_scaled.shape)
-    print("Scaled testing shape:", X_test_scaled.shape)
+    print("\nScaled first 5 training rows:")
+    print(X_train_scaled[:5])
 
+    print("\nScaled first 5 testing rows:")
+    print(X_test_scaled[:5])
+
+    # Existing tests
     assert X_train_scaled.shape == X_train.shape
-
     assert X_test_scaled.shape == X_test.shape
 
     np.testing.assert_allclose(
@@ -244,42 +248,6 @@ def test_standardize_features():
         np.ones(X_train.shape[1]),
         atol=1e-7
     )
-
-# ==========================================================
-# MODULE 4 - FEATURE SCALING
-# ==========================================================
-
-def test_standardize_features():
-    """SCA-UT-015"""
-
-    X_train = pd.DataFrame({
-        "A": [1, 2, 3, 4],
-        "B": [10, 20, 30, 40]
-    })
-
-    X_test = pd.DataFrame({
-        "A": [5, 6],
-        "B": [50, 60]
-    })
-
-    scaler, X_train_scaled, X_test_scaled = standardize_features(
-        X_train,
-        X_test
-    )
-
-    print("Training data standardized successfully.")
-    print("Scaled training shape:", X_train_scaled.shape)
-    print("Scaled testing shape:", X_test_scaled.shape)
-
-    assert X_train_scaled.shape == (4, 2)
-    assert X_test_scaled.shape == (2, 2)
-
-    np.testing.assert_allclose(
-        X_train_scaled.mean(axis=0),
-        [0, 0],
-        atol=1e-7
-    )
-
 
 # ==========================================================
 # MODULE 5 - RANDOM FOREST
