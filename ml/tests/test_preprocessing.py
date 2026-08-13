@@ -13,6 +13,17 @@ from ml.scripts.preprocessing import (
     find_duplicates,
     validate_unique_values,
     compute_composite_score,
+    get_gender_distribution,
+    get_income_distribution,
+    get_area_distribution,
+    get_frequency_distribution,
+    get_construct_descriptives,
+    get_construct_correlation_matrix,
+    get_aub_by_gender_summary,
+    run_ttest_aub_gender,
+    get_aub_by_area_summary,
+    run_anova_aub_area,
+    get_aub_by_frequency_summary,
 )
 
 DATASET_PATH = "ml/datasets/S-COMMERCE_GenZ_UniversityStudent_757_DIB.csv"
@@ -36,6 +47,14 @@ EXPECTED_COLUMNS = [
 # MODULE 1 - DATASET LOADING
 # ==========================================================
 
+# The following test checks:
+# - If the CSV file can be loaded successfully.
+# - If the returned object is a pandas DataFrame.
+#
+# This test will fail if:
+# - The dataset path is changed.
+# - The CSV file is missing.
+# - The function no longer returns a DataFrame.from the specified file path.
 def test_load_dataset():
     """SCA-UT-001"""
 
@@ -46,7 +65,13 @@ def test_load_dataset():
     assert df.shape == (757, 31)                     # Verify that the dataset contains the expected number of rows and columns.
     assert df.columns.tolist() == EXPECTED_COLUMNS   # Verify that all expected variables were loaded in the correct order.
 
-
+# The following test checks:
+# - If an invalid dataset path raises a FileNotFoundError.
+#
+# This test will fail if:
+# - The exception is removed.
+# - The wrong exception type is raised.
+# - The function silently ignores invalid file paths.
 def test_invalid_dataset():
     """SCA-UT-002"""
 
@@ -61,6 +86,13 @@ def test_invalid_dataset():
 # MODULE 2 - DATASET VALIDATION
 # ==========================================================
 
+# The following test checks:
+# - If the dataset dimensions are reported correctly.
+#
+# This test will fail if:
+# - Rows are added or removed.
+# - Columns are added or removed.
+# - The function no longer returns the dataset shape.
 def test_inspect_dataset():
     """SCA-UT-003.1"""
 
@@ -73,7 +105,13 @@ def test_inspect_dataset():
         f"Expected {len(EXPECTED_COLUMNS)} columns, got {columns}"
     )   # Verify that the function returns the correct number of variables.
 
-
+# The following test checks:
+# - If all expected columns are present in the dataset.
+#
+# This test will fail if:
+# - A column is renamed.
+# - A column is removed.
+# - Additional unexpected columns are introduced.
 def test_validate_columns():
     """SCA-UT-004"""
 
@@ -83,7 +121,12 @@ def test_validate_columns():
 
     assert columns == EXPECTED_COLUMNS               # Verify that all dataset columns are returned in the expected order.
 
-
+# The following test checks:
+# - If all columns retain their expected data types.
+#
+# This test will fail if:
+# - A numeric column becomes a string.
+# - A column's data type changes unexpectedly.
 def test_validate_dtypes():
     """SCA-UT-005"""
 
@@ -100,6 +143,12 @@ def test_validate_dtypes():
         "All dataset columns should have dtype int64."
     )   # Verify that every dataset variable is stored using the expected integer data type.
 
+# The following test checks:
+# - If missing values are identified correctly.
+#
+# This test will fail if:
+# - New missing values are introduced.
+# - The function no longer counts missing values correctly.
 def test_check_missing_values():
     """SCA-UT-007.1"""
 
@@ -117,8 +166,12 @@ def test_check_missing_values():
         expected
     )   # Verify that all dataset columns contain zero missing values.
 
-
-# Duplicate records are retained since identical responses may come from different respondents.
+# The following test checks:
+# - If duplicate rows are identified correctly.
+#
+# This test will fail if:
+# - Duplicate rows are added.
+# - The duplicate detection logic is modified.
 def test_find_duplicates():
     """SCA-UT-007.2"""
 
@@ -133,6 +186,13 @@ def test_find_duplicates():
         expected
     )   # Verify that the function correctly identifies all duplicate rows.
 
+# The following test checks:
+# - If every variable reports the correct number of unique values.
+#
+# This test will fail if:
+# - Values are modified.
+# - Categories are added or removed.
+# - The function no longer summarizes unique values correctly.
 def test_validate_unique_values():
     """SCA-UT-007.3"""
 
@@ -217,6 +277,12 @@ def test_validate_unique_values():
 # MODULE 3 - DATA CLEANING
 # ==========================================================
 
+# The following test checks:
+# - If the Job column is removed successfully.
+#
+# This test will fail if:
+# - The Job column remains in the dataset.
+# - The wrong column is removed.
 def test_drop_job():
     """SCA-UT-006"""
 
@@ -230,7 +296,12 @@ def test_drop_job():
     assert result.shape == (757, 30)                 # Verify that removing one column reduces the dataset to 30 variables.
     assert result.columns.tolist() == expected_columns   # Verify that the Job column was successfully removed.
 
-
+# The following test checks:
+# - If duplicate rows are identified correctly.
+#
+# This test will fail if:
+# - Duplicate rows are added.
+# - The duplicate detection logic is modified.
 def test_drop_peu4():
     """SCA-UT-006.2"""
 
@@ -248,6 +319,15 @@ def test_drop_peu4():
 # MODULE 4 - FEATURE ENGINEERING
 # ==========================================================
 
+# The following tests checks:
+# - If the features composite scores are computed correctly.
+#
+# This test will fail if:
+# - A questionnaire item is removed.
+# - The formula is modified.
+# - The wrong aggregation method is used.
+# This goes for each of the composite score tests below (PU, PEU, FSC, SP, TP, IB, AUB).
+
 def test_compute_pu():
     """SCA-UT-008.1"""
 
@@ -264,6 +344,9 @@ def test_compute_pu():
 
     assert result.columns.tolist() == expected           # Verify that the PU column was added to the dataset.
     assert "PU" in result.columns                        # Verify that the PU composite score column exists.
+
+    # Verify that no observations were removed
+    assert result.shape[0] == df.shape[0]
 
     assert result.loc[0, "PU"] == 4                      # Verify that the first respondent's PU score is correctly computed.
     assert result.loc[1, "PU"] == 3                      # Verify that the second respondent's PU score is correctly computed.
@@ -288,6 +371,9 @@ def test_compute_peu():
     assert result.columns.tolist() == expected
     assert "PEU" in result.columns
 
+    # Verify that no observations were removed
+    assert result.shape[0] == df.shape[0]
+
     # Precomputed values
     assert result.loc[0, "PEU"] == 4
     assert result.loc[1, "PEU"] == 3
@@ -311,6 +397,9 @@ def test_compute_fsc():
     # Verify schema
     assert result.columns.tolist() == expected
     assert "FSC" in result.columns
+
+    # Verify that no observations were removed
+    assert result.shape[0] == df.shape[0]
 
     # Precomputed values
     assert result.loc[0, "FSC"] == 4
@@ -337,6 +426,9 @@ def test_compute_sp():
     assert result.columns.tolist() == expected
     assert "SP" in result.columns
 
+    # Verify that no observations were removed
+    assert result.shape[0] == df.shape[0]
+
     # Precomputed values
     assert result.loc[0, "SP"] == 4
     assert result.loc[1, "SP"] == 3
@@ -361,6 +453,9 @@ def test_compute_tp():
     # Verify schema
     assert result.columns.tolist() == expected
     assert "TP" in result.columns
+
+    # Verify that no observations were removed
+    assert result.shape[0] == df.shape[0]
 
     # Precomputed values
     assert result.loc[0, "TP"] == 4
@@ -387,6 +482,9 @@ def test_compute_ib():
     assert result.columns.tolist() == expected
     assert "IB" in result.columns
 
+    # Verify that no observations were removed
+    assert result.shape[0] == df.shape[0]
+
     # Precomputed values
     assert result.loc[0, "IB"] == 3
     assert result.loc[1, "IB"] == 3
@@ -412,9 +510,267 @@ def test_compute_aub():
     assert result.columns.tolist() == expected
     assert "AUB" in result.columns
 
+    # Verify that no observations were removed
+    assert result.shape[0] == df.shape[0]    
+
     # Precomputed values
     assert result.loc[0, "AUB"] == 4
     assert result.loc[1, "AUB"] == 3
     assert result.loc[100, "AUB"] == 3
     assert result.loc[756, "AUB"] == 4
+
+
+
+# ==========================================================
+# MODULE 5 - EXPLORATORY DATA ANALYSIS (EDA)
+# ==========================================================
+@pytest.fixture
+def edaDF():
+    """Load and preprocess the dataset exactly the way the notebook does."""
+    data = load_dataset(DATASET_PATH)
+    data = drop_columns(data, ["PEU4"])
+    data = drop_columns(data, ["Job"])
+
+    data = compute_composite_score(data, ["PU1", "PU2", "PU3", "PU4"], "PU")
+    data = compute_composite_score(data, ["PEU1", "PEU2", "PEU3"], "PEU")
+    data = compute_composite_score(data, ["FSC1", "FSC2", "FSC3"], "FSC")
+    data = compute_composite_score(data, ["SP1", "SP2", "SP3", "SP4"], "SP")
+    data = compute_composite_score(data, ["TP1", "TP2", "TP3"], "TP")
+    data = compute_composite_score(data, ["IB1", "IB2", "IB3", "IB4"], "IB")
+    data = compute_composite_score(data, ["AUB1", "AUB2", "AUB3", "AUB4"], "AUB")
+
+    return data
+
+
+# DEMOGRAPHIC DISTRIBUTIONS
+# The following tests check:
+# - If the demographic distribution matches the original dataset.
+# - If all respondents are included in the total count.
+#
+# This test will fail if:
+# - Column values are modified.
+# - A row is removed.
+# - The column is changed.
+
+def test_get_gender_distribution(edaDF):
+    result = get_gender_distribution(edaDF)
+
+    assert result["Male"] == 167
+    assert result["Female"] == 588
+    assert result["Different"] == 2
+    assert result.sum() == 757
+
+
+def test_get_income_distribution(edaDF):
+    result = get_income_distribution(edaDF)
+
+    assert result["< $100"] == 672
+    assert result["$100 - $200"] == 68
+    assert result["$200 - $300"] == 12
+    assert result["$300 - $400"] == 2
+    assert result["> $400"] == 3
+    assert result.sum() == 757
+
+
+def test_get_area_distribution(edaDF):
+    result = get_area_distribution(edaDF)
+
+    assert result["Urban"] == 461
+    assert result["Suburban"] == 74
+    assert result["Rural"] == 222
+    assert result.sum() == 757
+
+
+def test_get_frequency_distribution(edaDF):
+    result = get_frequency_distribution(edaDF)
+
+    assert result["Daily"] == 725
+    assert result["Weekly"] == 14
+    assert result["Monthly"] == 7
+    assert result["Rarely Used"] == 11
+    assert result.sum() == 757
+
+
+# CONSTRUCT DESCRIPTIVES / CORRELATIONS
+# The following test checks:
+# - If descriptive statistics are generated for all seven constructs.
+# - If the calculated means match the original analysis.
+#
+# This test will fail if:
+# - A construct is removed.
+# - Composite scores are modified.
+# - Statistical calculations are changed.
+def test_get_construct_descriptives_shape_and_range(edaDF):
+    result = get_construct_descriptives(edaDF)
+
+    expected_constructs = ["PU", "PEU", "FSC", "SP", "TP", "IB", "AUB"]
+    assert result.columns.tolist() == expected_constructs
+    assert result.loc["count"].tolist() == [757] * 7
+
+    assert result.loc["mean", "PU"] == pytest.approx(3.77, abs=0.01)
+    assert result.loc["mean", "PEU"] == pytest.approx(3.70, abs=0.01)
+    assert result.loc["mean", "FSC"] == pytest.approx(3.73, abs=0.01)
+    assert result.loc["mean", "SP"] == pytest.approx(3.60, abs=0.01)
+    assert result.loc["mean", "TP"] == pytest.approx(3.56, abs=0.01)
+    assert result.loc["mean", "IB"] == pytest.approx(3.61, abs=0.01)
+    assert result.loc["mean", "AUB"] == pytest.approx(3.68, abs=0.01)
+
+# The following test checks:
+# - If the correlation values remain consistent with the original analysis.
+# - If the correlation matrix structure remains valid.
+#
+# This test will fail if:
+# - A construct is removed.
+# - A composite score changes.
+# - The correlation method is changed.
+def test_get_construct_correlation_matrix_known_pairs(edaDF):
+    """
+    Exact values below were pulled directly from
+    get_construct_correlation_matrix(edaDF) after fixing the SP composite
+    bug (SP now correctly uses SP1-SP4, not SP1-SP3). Tolerance is
+    tight (abs=0.001) since these are full-precision, not rounded
+    write-up numbers.
+    """
+    corr = get_construct_correlation_matrix(edaDF)
+
+    assert corr.loc["PU", "PEU"] == pytest.approx(0.788226, abs=0.001)
+    assert corr.loc["PU", "FSC"] == pytest.approx(0.804070, abs=0.001)
+    assert corr.loc["PU", "SP"] == pytest.approx(0.718057, abs=0.001)
+    assert corr.loc["PU", "TP"] == pytest.approx(0.676910, abs=0.001)
+    assert corr.loc["PU", "IB"] == pytest.approx(0.655539, abs=0.001)
+    assert corr.loc["PU", "AUB"] == pytest.approx(0.771895, abs=0.001)
+
+    assert corr.loc["PEU", "FSC"] == pytest.approx(0.776458, abs=0.001)
+    assert corr.loc["PEU", "SP"] == pytest.approx(0.717394, abs=0.001)
+    assert corr.loc["PEU", "TP"] == pytest.approx(0.674808, abs=0.001)
+    assert corr.loc["PEU", "IB"] == pytest.approx(0.691334, abs=0.001)
+    assert corr.loc["PEU", "AUB"] == pytest.approx(0.785858, abs=0.001)
+
+    assert corr.loc["FSC", "SP"] == pytest.approx(0.766774, abs=0.001)
+    assert corr.loc["FSC", "TP"] == pytest.approx(0.710337, abs=0.001)
+    assert corr.loc["FSC", "IB"] == pytest.approx(0.657147, abs=0.001)
+    assert corr.loc["FSC", "AUB"] == pytest.approx(0.744687, abs=0.001)
+
+    assert corr.loc["SP", "TP"] == pytest.approx(0.734756, abs=0.001)
+    assert corr.loc["SP", "IB"] == pytest.approx(0.644206, abs=0.001)
+    assert corr.loc["SP", "AUB"] == pytest.approx(0.691883, abs=0.001)
+
+    assert corr.loc["TP", "IB"] == pytest.approx(0.663131, abs=0.001)
+    assert corr.loc["TP", "AUB"] == pytest.approx(0.662269, abs=0.001)
+
+    assert corr.loc["IB", "AUB"] == pytest.approx(0.683213, abs=0.001)
+
+    # Sanity checks on the matrix shape itself, so a broken pivot/reindex
+    # would still get caught even if the specific pairs above happened
+    # to still line up.
+    for construct in corr.columns:
+        assert corr.loc[construct, construct] == pytest.approx(1.0)
+
+# The following test checks:
+# - If the SP composite score uses SP1, SP2, SP3, and SP4.
+# - If the previously identified regression bug reappears.
+#
+# This test will fail if:
+# - SP4 is removed.
+# - Only three SP items are used.
+# - The SP calculation is modified.
+def test_sp_composite_uses_all_four_items(edaDF):
+    """
+    Regression test for a bug found in the notebook: SP was originally
+    computed from SP1-SP4, but later silently recomputed from only
+    SP1-SP3 right before the correlation matrix. This checks SP was
+    built from all four items, so that regression can't creep back in
+    without a test failing.
+    """
+    expected_sp = edaDF[["SP1", "SP2", "SP3", "SP4"]].mean(axis=1)
+    assert (edaDF["SP"] - expected_sp).abs().max() < 1e-9
+
+
+# AUB ACROSS DEMOGRAPHIC GROUPS
+# The following test checks:
+# - If the AUB summary statistics for each gender are computed correctly.
+#
+# This test will fail if:
+# - AUB values are modified.
+# - Gender categories are changed.
+# - Summary calculations are changed.
+def test_get_aub_by_gender_summary(edaDF):
+    result = get_aub_by_gender_summary(edaDF)
+
+    assert result.loc["Male", "count"] == 167
+    assert result.loc["Female", "count"] == 588
+
+    assert result.loc["Male", "mean"] == pytest.approx(3.66, abs=0.01)
+    assert result.loc["Female", "mean"] == pytest.approx(3.69, abs=0.01)
+
+    assert result.loc["Male", "median"] == pytest.approx(3.75)
+    assert result.loc["Female", "median"] == pytest.approx(4.00)
+
+    assert result.loc["Male", "std"] == pytest.approx(0.79, abs=0.01)
+    assert result.loc["Female", "std"] == pytest.approx(0.67, abs=0.01)
+
+# The following test checks:
+# - If the t-test produces the expected t-statistic and p-value.
+#
+# This test will fail if:
+# - AUB values are modified.
+# - Gender filtering is changed.
+# - The statistical method is modified.
+def test_run_ttest_aub_gender(edaDF):
+    t_stat, p_value = run_ttest_aub_gender(edaDF)
+
+    assert t_stat == pytest.approx(-0.417, abs=0.01)
+    assert p_value == pytest.approx(0.677, abs=0.01)
+    assert p_value > 0.05  # not statistically significant, per the report
+
+# The following test checks:
+# - If AUB summary statistics for each residential area are computed correctly.
+#
+# This test will fail if:
+# - AUB values are modified.
+# - Area categories are changed.
+# - Summary calculations are modified.
+def test_get_aub_by_area_summary(edaDF):
+    result = get_aub_by_area_summary(edaDF)
+
+    assert result.loc["Urban", "count"] == 461
+    assert result.loc["Suburban", "count"] == 74
+    assert result.loc["Rural", "count"] == 222
+
+    assert result.loc["Urban", "mean"] == pytest.approx(3.71, abs=0.01)
+    assert result.loc["Suburban", "mean"] == pytest.approx(3.64, abs=0.01)
+    assert result.loc["Rural", "mean"] == pytest.approx(3.62, abs=0.01)
+
+    assert result.loc["Urban", "median"] == pytest.approx(4.00)
+    assert result.loc["Suburban", "median"] == pytest.approx(3.75)
+    assert result.loc["Rural", "median"] == pytest.approx(3.75)
+
+# The following test checks:
+# - If the ANOVA produces the expected F-statistic and p-value.
+#
+# This test will fail if:
+# - AUB values are modified.
+# - Area filtering is changed.
+# - The statistical method is modified.
+def test_run_anova_aub_area(edaDF):
+    f_stat, p_value = run_anova_aub_area(edaDF)
+
+    assert f_stat == pytest.approx(1.4681, abs=0.01)
+    assert p_value == pytest.approx(0.2310, abs=0.01)
+    assert p_value > 0.05  # not statistically significant, per the report
+
+# The following test checks:
+# - If AUB summary statistics for each frequency group are computed correctly.
+#
+# This test will fail if:
+# - AUB values are modified.
+# - Frequency categories are changed.
+# - Summary calculations are modified.
+def test_get_aub_by_frequency_summary(edaDF):
+    result = get_aub_by_frequency_summary(edaDF)
+
+    assert result.loc["Daily", "count"] == 725
+    assert result.loc["Weekly", "count"] == 14
+    assert result.loc["Monthly", "count"] == 7
+    assert result.loc["Rarely Used", "count"] == 11
 
