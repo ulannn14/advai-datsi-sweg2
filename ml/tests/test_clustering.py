@@ -41,9 +41,7 @@ FEATURES = [
 ]
 
 
-# ==========================================================
-# TEST DATA PREPARATION
-# ==========================================================
+# ======================= TEST DATA PREPARATION =======================
 
 def prepare_dataset():
     """
@@ -108,10 +106,22 @@ def prepare_dataset():
     return df
 
 
-# ==========================================================
-# MODULE 5 - FEATURE SELECTION
-# ==========================================================
+# ======================= MODULE 5 - FEATURE SELECTION =======================
 
+# The following test checks:
+# - If the select_features wrapper returns a pandas DataFrame.
+# - If exactly the six clustering features are returned.
+# - If the selected features are returned in the expected order.
+# - If no additional variables are included.
+# - If the values returned by the wrapper exactly match the
+#   corresponding columns in the prepared dataset.
+#
+# This test will fail if:
+# - The wrapper returns an object other than a DataFrame.
+# - The number of selected features changes.
+# - The feature names or their order changes.
+# - Additional variables are included.
+# - The wrapper selects different values from the source dataset.
 def test_select_features():
     """SCA-UT-009"""
 
@@ -147,10 +157,24 @@ def test_select_features():
     )
 
 
-# ==========================================================
-# MODULE 6 - FEATURE STANDARDIZATION
-# ==========================================================
+# ======================= MODULE 6 - FEATURE STANDARDIZATION =======================
 
+# The following test checks:
+# - If the standardize_features wrapper returns a NumPy array.
+# - If the standardized dataset has the expected dimensions.
+# - If standardization produces no missing values.
+# - If standardization produces no infinite values.
+# - If each feature has an approximately zero mean.
+# - If each feature has a population standard deviation of approximately one.
+# - If the wrapper produces the same standardized values as sklearn's
+#   StandardScaler.
+#
+# This test will fail if:
+# - The wrapper returns an unexpected data type.
+# - The number of observations or features changes.
+# - Standardization produces NaN or infinite values.
+# - The standardized features do not have the expected mean or standard deviation.
+# - The wrapper uses a different standardization procedure.
 def test_standardize_features():
     """SCA-UT-010"""
 
@@ -216,10 +240,25 @@ def test_standardize_features():
     )
 
 
-# ==========================================================
-# MODULE 7 - MULTICOLLINEARITY ANALYSIS
-# ==========================================================
+# ======================= MODULE 7 - MULTICOLLINEARITY ANALYSIS =======================
 
+# The following test checks:
+# - If the calculate_vif wrapper returns a pandas DataFrame.
+# - If the output contains the expected Construct and VIF columns.
+# - If one VIF result is produced for each clustering feature.
+# - If the construct names are returned in the expected order.
+# - If the VIF values are numeric.
+# - If the VIF values are finite.
+# - If the calculated VIF values match the values obtained from the
+#   original notebook.
+#
+# This test will fail if:
+# - The wrapper returns an unexpected data type.
+# - The output column names change.
+# - A clustering feature is missing from the VIF results.
+# - The feature order changes.
+# - The VIF values are non-numeric or non-finite.
+# - The wrapper produces VIF values that differ from the original notebook.
 def test_calculate_vif():
     """SCA-UT-011"""
 
@@ -288,10 +327,27 @@ def test_calculate_vif():
     )
 
 
-# ==========================================================
-# MODULE 8 - OPTIMAL K SELECTION
-# ==========================================================
+# ======================= MODULE 8 - OPTIMAL K SELECTION =======================
 
+# The following test checks:
+# - If the evaluate_kmeans_clusters wrapper returns the expected
+#   inertia and silhouette score lists.
+# - If one result is produced for each tested k value from 2 through 10.
+# - If all inertia and silhouette values are numeric and finite.
+# - If inertia values are positive.
+# - If silhouette scores remain within the valid range of -1 to 1.
+# - If inertia decreases as the number of clusters increases.
+# - If the calculated inertia values match the results from the original notebook.
+# - If the calculated silhouette scores match the results from the original notebook.
+#
+# This test will fail if:
+# - The wrapper returns an unexpected result type.
+# - A k value does not produce a result.
+# - Any result is NaN or infinite.
+# - An invalid inertia or silhouette value is produced.
+# - Inertia does not decrease as k increases.
+# - The clustering configuration changes and produces results
+#   different from the original notebook.
 def test_evaluate_kmeans_clusters():
     """SCA-UT-012"""
 
@@ -407,10 +463,26 @@ def test_evaluate_kmeans_clusters():
     )
 
 
-# ==========================================================
-# MODULE 9 - CLUSTERING
-# ==========================================================
+# ======================= MODULE 9 - CLUSTERING =======================
 
+# The following test checks:
+# - If the perform_kmeans wrapper returns a fitted sklearn KMeans model.
+# - If the model uses four clusters.
+# - If one cluster label is produced for every respondent.
+# - If exactly four clusters are generated.
+# - If the cluster labels are 0, 1, 2, and 3.
+# - If the cluster centers have the expected dimensions.
+# - If the model contains fitted K-Means attributes.
+# - If the cluster centers and cluster labels contain finite values.
+#
+# This test will fail if:
+# - The wrapper does not return a KMeans model.
+# - The number of clusters changes from four.
+# - A respondent does not receive a cluster label.
+# - A cluster is missing.
+# - Unexpected cluster labels are produced.
+# - The model is not successfully fitted.
+# - Non-finite clustering results are produced.
 def test_perform_kmeans():
     """SCA-UT-013"""
 
@@ -478,6 +550,21 @@ def test_perform_kmeans():
     ).all()
 
 
+# The following test checks:
+# - If the get_cluster_sizes wrapper returns a pandas Series.
+# - If the expected four cluster labels are returned.
+# - If the cluster sizes match the expected results from the clustering pipeline.
+# - If the returned Series has the expected name.
+# - If all 757 respondents are accounted for.
+# - If every cluster contains at least one observation.
+#
+# This test will fail if:
+# - The wrapper returns an unexpected data type.
+# - A cluster label is missing or reordered.
+# - The number of observations in any cluster changes.
+# - The Series name changes.
+# - The total number of observations is not 757.
+# - An empty cluster is produced.
 def test_get_cluster_sizes():
     """SCA-UT-014"""
 
@@ -534,6 +621,24 @@ def test_get_cluster_sizes():
     ).all()
 
 
+# The following test checks:
+# - If the calculate_cluster_profiles wrapper returns a pandas DataFrame.
+# - If four cluster profiles are produced.
+# - If the six clustering features and AUB are included.
+# - If the cluster labels are returned in the expected order.
+# - If all profile values are finite.
+# - If the behavioral construct and AUB means remain within the original 1-5 scale.
+# - If the calculated cluster profile values match the results from
+#   the original notebook.
+#
+# This test will fail if:
+# - The wrapper returns an unexpected data type.
+# - The number of clusters changes.
+# - A required feature or AUB is missing.
+# - The cluster ordering changes.
+# - Non-finite profile values are produced.
+# - A profile value falls outside the expected 1-5 scale.
+# - The wrapper produces cluster profile values different from the original notebook.
 def test_calculate_cluster_profiles():
     """SCA-UT-015"""
 
@@ -639,10 +744,26 @@ def test_calculate_cluster_profiles():
     )
 
 
-# ==========================================================
-# MODULE 10 - NORMALITY TESTING
-# ==========================================================
+# ======================= MODULE 10 - NORMALITY TESTING =======================
 
+# The following test checks:
+# - If the perform_shapiro_test wrapper returns a list.
+# - If one Shapiro-Wilk result is produced for each of the four clusters.
+# - If the cluster labels are returned in the expected order.
+# - If the cluster identifiers, test statistics, and p-values have
+#   the expected numeric data types.
+# - If Shapiro-Wilk statistics are within the valid 0-1 range.
+# - If p-values are within the valid 0-1 range.
+# - If the calculated Shapiro-Wilk statistics match the results
+#   from the original notebook.
+# - If the calculated p-values match the results from the original notebook.
+#
+# This test will fail if:
+# - The wrapper returns an unexpected data type.
+# - A cluster does not receive a normality test result.
+# - Cluster ordering changes.
+# - Invalid statistical values are produced.
+# - The Shapiro-Wilk results differ from the original notebook.
 def test_perform_shapiro_test():
     """SCA-UT-016"""
 
@@ -747,10 +868,23 @@ def test_perform_shapiro_test():
         )
 
 
-# ==========================================================
-# MODULE 11 - STATISTICAL INFERENCE
-# ==========================================================
+# ======================= MODULE 11 - STATISTICAL INFERENCE =======================
 
+# The following test checks:
+# - If the perform_kruskal_wallis wrapper returns numeric H and p values.
+# - If the Kruskal-Wallis H statistic is non-negative.
+# - If the p-value is within the valid 0-1 range.
+# - If the H statistic matches the result from the original notebook.
+# - If the p-value matches the result from the original notebook.
+# - If the resulting p-value indicates a statistically significant
+#   difference between the clusters.
+#
+# This test will fail if:
+# - The wrapper returns non-numeric statistical results.
+# - An invalid H statistic or p-value is produced.
+# - The calculated H statistic differs from the original notebook.
+# - The calculated p-value differs from the original notebook.
+# - The statistical significance conclusion changes.
 def test_perform_kruskal_wallis():
     """SCA-UT-017"""
 
@@ -805,6 +939,26 @@ def test_perform_kruskal_wallis():
     assert p < 0.05
 
 
+# The following test checks:
+# - If the perform_dunn_test wrapper returns a pandas DataFrame.
+# - If the result is a 4 x 4 pairwise comparison matrix.
+# - If all four cluster labels are present in the rows and columns.
+# - If all p-values are finite.
+# - If all p-values are within the valid 0-1 range.
+# - If self-comparisons have a p-value of 1.
+# - If the pairwise comparison matrix is symmetric.
+# - If the complete Dunn test matrix matches the results from the
+#   original notebook.
+# - If the expected significant pairwise cluster differences are present.
+#
+# This test will fail if:
+# - The wrapper returns an unexpected data type.
+# - The number of clusters changes.
+# - A cluster is missing from the matrix.
+# - Invalid p-values are produced.
+# - The Dunn matrix is no longer symmetric.
+# - The wrapper produces values different from the original notebook.
+# - Expected statistically significant pairwise differences are no longer significant.
 def test_perform_dunn_test():
     """SCA-UT-018"""
 

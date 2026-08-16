@@ -17,9 +17,7 @@ from sklearn.metrics import silhouette_score
 import scikit_posthocs as sp
 
 
-# ==========================================================
-# MODULE 5 - FEATURE SELECTION
-# ==========================================================
+# ============================= MODULE 5 - FEATURE SELECTION =============================
 
 def select_features(scommerce_df, features):
     """
@@ -31,9 +29,7 @@ def select_features(scommerce_df, features):
     return X
 
 
-# ==========================================================
-# MODULE 6 - FEATURE STANDARDIZATION
-# ==========================================================
+# ============================= MODULE 6 - FEATURE STANDARDIZATION =============================
 
 def standardize_features(X):
     """
@@ -47,9 +43,7 @@ def standardize_features(X):
     return X_scaled
 
 
-# ==========================================================
-# MODULE 7 - MULTICOLLINEARITY ANALYSIS
-# ==========================================================
+# ============================= MODULE 7 - MULTICOLLINEARITY ANALYSIS =============================
 
 def calculate_vif(X_scaled, features):
     """
@@ -67,9 +61,7 @@ def calculate_vif(X_scaled, features):
     return vif_data
 
 
-# ==========================================================
-# MODULE 8 - OPTIMAL K SELECTION
-# ==========================================================
+# ============================= MODULE 8 - OPTIMAL K SELECTION =============================
 
 def evaluate_kmeans_clusters(X_scaled, k_values):
     """
@@ -98,9 +90,7 @@ def evaluate_kmeans_clusters(X_scaled, k_values):
     return inertia, silhouette_scores
 
 
-# ==========================================================
-# MODULE 9 - CLUSTERING
-# ==========================================================
+# ============================= MODULE 9 - CLUSTERING =============================
 
 def perform_kmeans(X_scaled):
     """
@@ -147,9 +137,7 @@ def calculate_cluster_profiles(scommerce_df, features):
     return cluster_profile
 
 
-# ==========================================================
-# MODULE 10 - NORMALITY TESTING
-# ==========================================================
+# ============================= MODULE 10 - NORMALITY TESTING =============================
 
 def perform_shapiro_test(scommerce_df):
     """
@@ -175,9 +163,7 @@ def perform_shapiro_test(scommerce_df):
     return results
 
 
-# ==========================================================
-# MODULE 11 - STATISTICAL INFERENCE
-# ==========================================================
+# ============================= MODULE 11 - STATISTICAL INFERENCE =============================
 
 def perform_kruskal_wallis(scommerce_df):
     """

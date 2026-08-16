@@ -586,411 +586,358 @@ def test_preprocessing_and_eda_pipeline():
     assert frequency_summary.loc["Monthly", "count"] == 7
     assert frequency_summary.loc["Rarely Used", "count"] == 11
 
+
+# The following integration test checks:
+# - If the complete clustering workflow reproduces the exact process used
+#   in the notebook.
+# - If the preprocessing required for clustering produces the same
+#   composite construct scores.
+# - If the correct clustering features are selected.
+# - If feature standardization produces the same standardized values.
+# - If the VIF analysis produces the same multicollinearity results.
+# - If K-Means model evaluation produces the same inertia and silhouette
+#   scores for k = 2 through 10.
+# - If the final four-cluster K-Means solution is reproduced.
+# - If cluster sizes and cluster profiles remain unchanged.
+# - If the statistical inference results across clusters remain unchanged.
+# - If the Dunn's post-hoc comparisons remain consistent with the notebook.
+#
+# This test will fail if:
+# - The preprocessing or composite-score calculations change.
+# - A clustering feature is removed, renamed, or reordered.
+# - Standardization is changed.
+# - VIF calculations change.
+# - The K-Means configuration or random state changes.
+# - The inertia or silhouette results change.
+# - Cluster assignments or cluster sizes change.
+# - Cluster profile values change.
+# - The Shapiro-Wilk, Kruskal-Wallis, or Dunn's test results change.
+# - The clustering notebook results can no longer be reproduced.
 def test_clustering_pipeline():
     """
     SCT-002
 
     End-to-end integration test for the complete
-    preprocessing and EDA pipeline.
+    clustering.
     """
 
-    # =====================================================
-    # DATA PREPROCESSING
-    # =====================================================
+    # ================================= DATA PREPROCESSING =================================
+    # Recreates the same preprocessing and composite-score calculations
+    # performed before clustering in the notebook.
+    #
+    # These steps are intentionally included in the clustering integration
+    # test because the clustering results depend directly on the resulting
+    # composite construct values. A change here can propagate through
+    # standardization, VIF, K-Means, and all downstream statistical tests.
 
+    # The clustering workflow must begin with the same raw dataset used
+    # in the notebook. If the source data changes, every downstream
+    # clustering result may also change.
     df = load_dataset(DATASET_PATH)
 
-    df = drop_columns(
-        df,
-        ["Job"]
-    )
 
-    df = drop_columns(
-        df,
-        ["PEU4"]
-    )
+    # PEU4 and Job are removed using the same preprocessing decisions
+    # established in Phase 1. Keeping these operations in the integration
+    # test ensures the clustering pipeline receives the same feature space
+    # as the notebook.
+    df = drop_columns(df, ["Job"])
+    df = drop_columns(df, ["PEU4"])
 
-    df = compute_composite_score(
-        df,
-        ["PU1", "PU2", "PU3", "PU4"],
-        "PU"
-    )
-
-    df = compute_composite_score(
-        df,
-        ["PEU1", "PEU2", "PEU3"],
-        "PEU"
-    )
-
-    df = compute_composite_score(
-        df,
-        ["FSC1", "FSC2", "FSC3"],
-        "FSC"
-    )
-
-    df = compute_composite_score(
-        df,
-        ["SP1", "SP2", "SP3", "SP4"],
-        "SP"
-    )
-
-    df = compute_composite_score(
-        df,
-        ["TP1", "TP2", "TP3"],
-        "TP"
-    )
-
-    df = compute_composite_score(
-        df,
-        ["IB1", "IB2", "IB3", "IB4"],
-        "IB"
-    )
-
-    df = compute_composite_score(
-        df,
-        ["AUB1", "AUB2", "AUB3", "AUB4"],
-        "AUB"
-    )
+    # The seven composite constructs are recreated using their exact
+    # questionnaire items. These values become the inputs for both the
+    # clustering features and the AUB variable used during cluster profiling
+    # and statistical inference.
+    #
+    # The SP calculation is especially important because SP previously
+    # differed when the wrong questionnaire items were used. Keeping the
+    # exact SP1-SP4 calculation here prevents that regression from silently
+    # changing the clustering results.
+    df = compute_composite_score(df, ["PU1", "PU2", "PU3", "PU4"], "PU")
+    df = compute_composite_score(df, ["PEU1", "PEU2", "PEU3"], "PEU")
+    df = compute_composite_score(df, ["FSC1", "FSC2", "FSC3"], "FSC")
+    df = compute_composite_score(df, ["SP1", "SP2", "SP3", "SP4"], "SP")
+    df = compute_composite_score(df, ["TP1", "TP2", "TP3"], "TP")
+    df = compute_composite_score(df, ["IB1", "IB2", "IB3", "IB4"], "IB")
+    df = compute_composite_score(df, ["AUB1", "AUB2", "AUB3", "AUB4"], "AUB")
     
-    # =====================================================
-    # CLUSTERING
-    # =====================================================
+    # ================================= FEATURE SELECTION =================================
 
-    result = select_features(
-        df,
-        FEATURES
-    )
+    # select_features() should return only the six behavioral constructs
+    # used for clustering, in the exact order used by the notebook.
+    #
+    # Checking the type, shape, column names, and actual values prevents a
+    # feature from being accidentally omitted, added, renamed, reordered,
+    # or populated from the wrong source columns.
+    result = select_features(df, FEATURES)
 
-    assert isinstance(
-        result,
-        pd.DataFrame
-    )
+    # Confirms the feature-selection wrapper returns a DataFrame rather than
+    # an array or another object. The downstream clustering workflow expects
+    # the selected features to retain their tabular structure.
+    assert isinstance(result, pd.DataFrame)
 
-    assert result.shape == (
-        757,
-        6
-    )
-
+    # Checks both the feature NAMES and their ORDER. This is important because
+    # the standardized matrix preserves this column order, so reordering the
+    # constructs would change which standardized values correspond to each
+    # feature.
+    assert result.shape == (757, 6)
     assert result.columns.tolist() == FEATURES
-
     assert len(result.columns) == len(FEATURES)
 
-    pd.testing.assert_frame_equal(
-        result,
-        df[FEATURES]
-    )
+    # Compares the complete selected feature matrix against the source
+    # dataframe. This goes beyond checking the schema: it verifies that every
+    # respondent's six clustering values are exactly the values supplied to
+    # the clustering workflow.
+    pd.testing.assert_frame_equal(result, df[FEATURES])
 
-    X = select_features(
-        df,
-        FEATURES
-    )
+    # ================================= FEATURE STANDARDIZATION =================================
+    # Standardizes the six clustering constructs using the same procedure
+    # used in the notebook before VIF analysis and K-Means.
+    X = select_features(df, FEATURES)
+    result = standardize_features( X)
 
-    result = standardize_features(
-        X
-    )
+    assert isinstance(result, np.ndarray)
+    assert result.shape == (757, 6)
 
-    assert isinstance(
-        result,
-        np.ndarray
-    )
+    # No standardized observation should become NaN. A NaN value would
+    # indicate that invalid or missing input data entered the clustering
+    # workflow and could affect VIF and K-Means.
+    assert not np.isnan(result).any()
 
-    assert result.shape == (
-        757,
-        6
-    )
+    # Ensures the standardized matrix contains no infinite values.
+    # Infinite values would indicate an invalid transformation and would
+    # make the clustering calculations unreliable.
+    assert np.isfinite(result).all()
 
-    assert not np.isnan(
-        result
-    ).any()
+    # StandardScaler should center every clustering feature around zero.
+    # This confirms that the standardization actually removed the original
+    # feature means as expected.
+    assert np.allclose(result.mean(axis=0), 0, atol=1e-10)
 
-    assert np.isfinite(
-        result
-    ).all()
+    # StandardScaler should scale every feature to unit population standard
+    # deviation. This ensures that the constructs are placed on a comparable
+    # scale before distance-based K-Means clustering is performed.
+    assert np.allclose(result.std(axis=0), 1, atol=1e-10)
 
-    assert np.allclose(
-        result.mean(axis=0),
-        0,
-        atol=1e-10
-    )
+    expected = StandardScaler().fit_transform(X)
 
-    assert np.allclose(
-        result.std(axis=0),
-        1,
-        atol=1e-10
-    )
+    # Recreates the expected transformation independently using sklearn.
+    # This is stronger than checking only the mean and standard deviation:
+    # it verifies that every standardized observation matches the values
+    # produced by the StandardScaler implementation used by the notebook.
+    np.testing.assert_allclose(result,expected, rtol=1e-10, atol=1e-10)
 
-    expected = StandardScaler().fit_transform(
-        X
-    )
+    # ================================= MULTICOLLINEARITY (VIF) =================================
+    # Calculates the Variance Inflation Factor for each clustering construct.
+    # VIF is performed on the standardized feature matrix, matching the
+    # procedure used in the notebook.
+    X_scaled = standardize_features(X)
+    result = calculate_vif(X_scaled, FEATURES)
 
-    np.testing.assert_allclose(
-        result,
-        expected,
-        rtol=1e-10,
-        atol=1e-10
-    )
+    # The VIF result should contain exactly one row for each clustering
+    # construct and the two expected output columns. This catches changes
+    # to the structure of the multicollinearity analysis.
+    assert isinstance(result, pd.DataFrame)
+    assert result.columns.tolist() == [ "Construct", "VIF"]
 
-    X_scaled = standardize_features(
-        X
-    )
+    assert result.shape == (6, 2)
 
-    result = calculate_vif(
-        X_scaled,
-        FEATURES
-    )
-
-    assert isinstance(
-        result,
-        pd.DataFrame
-    )
-
-    assert result.columns.tolist() == [
-        "Construct",
-        "VIF"
-    ]
-
-    assert result.shape == (
-        6,
-        2
-    )
-
+    # The construct order must match FEATURES so that each VIF value is
+    # associated with the correct behavioral construct.
     assert result["Construct"].tolist() == FEATURES
 
-    assert pd.api.types.is_numeric_dtype(
-        result["VIF"]
-    )
+    # VIF values must be numeric because they represent calculated
+    # multicollinearity statistics rather than labels or text.
+    assert pd.api.types.is_numeric_dtype(result["VIF"])
 
-    assert np.isfinite(
-        result["VIF"]
-    ).all()
+    # Every VIF value must be finite. Infinite or NaN values would indicate
+    # that the VIF calculation is no longer producing a usable result.
+    assert np.isfinite(result["VIF"]).all()
 
-    expected_vif = [
-        3.654939,
-        3.515319,
-        3.988501,
-        3.150629,
-        2.709242,
-        2.301402,
-    ]
+    # These are the VIF values established from the notebook output.
+    # Comparing the complete vector verifies that the actual VIF result
+    # matches the notebook for all six constructs, rather than checking
+    # only that the values are valid numbers.
+    expected_vif = [3.654939, 3.515319, 3.988501, 3.150629, 2.709242, 2.301402,]
 
-    np.testing.assert_allclose(
-        result["VIF"].values,
-        expected_vif,
-        rtol=1e-5,
-        atol=1e-5
-    )
+    # Compares the actual VIF values against the established notebook values.
+    # A tolerance is used because VIF calculations involve floating-point
+    # arithmetic.
+    np.testing.assert_allclose(result["VIF"].values, expected_vif, rtol=1e-5, atol=1e-5)
 
-    k_values = range(
-        2,
-        11
-    )
+    # ================================= OPTIMAL K SELECTION =================================
+    # Evaluates the candidate K-Means solutions used to determine the
+    # appropriate number of clusters.
+    
+    # The notebook evaluates k = 2 through k = 10. Keeping this exact range
+    # ensures the integration test covers the same candidate models.
+    k_values = range(2, 11)
+    inertia, silhouette_scores = (evaluate_kmeans_clusters(X_scaled, k_values))
 
-    inertia, silhouette_scores = (
-        evaluate_kmeans_clusters(
-            X_scaled,
-            k_values
-        )
-    )
+    assert isinstance(inertia, list)
+    assert isinstance(silhouette_scores, list)
 
-    assert isinstance(
-        inertia,
-        list
-    )
-
-    assert isinstance(
-        silhouette_scores,
-        list
-    )
-
+    # Nine candidate values of k should produce exactly nine inertia values
+    # and nine silhouette scores. A mismatch indicates that one or more
+    # candidate models were not evaluated.
     assert len(inertia) == 9
     assert len(silhouette_scores) == 9
 
-    assert np.isfinite(
-        inertia
-    ).all()
+    # Ensures every model evaluation produced a valid numerical result.
+    # NaN or infinite values would make the model-selection results unusable.
+    assert np.isfinite(inertia).all()
+    assert np.isfinite(silhouette_scores).all()
 
-    assert np.isfinite(
-        silhouette_scores
-    ).all()
+    assert all(value > 0 for value in inertia)
 
-    assert all(
-        value > 0
-        for value in inertia
-    )
+    # Silhouette scores must remain within their theoretical range of -1 to 1.
+    # This catches invalid or corrupted model-evaluation results.
+    assert all(-1 <= value <= 1 for value in silhouette_scores)
 
-    assert all(
-        -1 <= value <= 1
-        for value in silhouette_scores
-    )
+    # Inertia should decrease as more clusters are introduced because adding
+    # clusters cannot increase the minimum within-cluster sum of squares.
+    # This confirms the expected behavior of the evaluated K-Means solutions.
+    assert all(inertia[i] > inertia[i + 1] for i in range(len(inertia) - 1))
 
-    assert all(
-        inertia[i] > inertia[i + 1]
-        for i in range(
-            len(inertia) - 1
-        )
-    )
-
+    # These are the exact inertia values obtained from the notebook for
+    # k = 2 through k = 10. They serve as the established baseline for
+    # the clustering model-selection stage.
     expected_inertia = [
-        2397.3951517810065,
-        1876.6780711816932,
-        1470.371175770248,
-        1289.3260086578698,
-        1194.8825839212625,
-        1138.661553747194,
-        1082.160274964026,
-        1041.3118953265096,
+        2397.3951517810065, 
+        1876.6780711816932, 
+        1470.371175770248, 
+        1289.3260086578698, 
+        1194.8825839212625, 
+        1138.661553747194, 
+        1082.160274964026, 
+        1041.3118953265096, 
         995.2666652249214,
     ]
 
+    # These are the corresponding silhouette scores reported by the notebook.
+    # Checking all nine values ensures that the complete model-selection
+    # stage remains reproducible rather than checking only the selected k.
     expected_silhouette_scores = [
-        0.4357624529557227,
-        0.42533701123564177,
-        0.37747256266114426,
-        0.33290308059903284,
-        0.2913130488967038,
-        0.29138177791986325,
-        0.30602460012945765,
-        0.2930900543684983,
+        0.4357624529557227, 
+        0.42533701123564177, 
+        0.37747256266114426, 
+        0.33290308059903284, 
+        0.2913130488967038, 
+        0.29138177791986325, 
+        0.30602460012945765, 
+        0.2930900543684983, 
         0.29391001252620486,
     ]
 
-    np.testing.assert_allclose(
-        inertia,
-        expected_inertia,
-        rtol=1e-5,
-        atol=1e-5
-    )
+    # Compares the complete actual model-selection results against the
+    # established notebook results. This catches changes to preprocessing,
+    # standardization, random state, K-Means configuration, or scoring logic
+    # that could otherwise alter the selected clustering solution.
+    np.testing.assert_allclose(inertia, expected_inertia, rtol=1e-5, atol=1e-5)
+    np.testing.assert_allclose(silhouette_scores, expected_silhouette_scores, rtol=1e-5, atol=1e-5)
 
-    np.testing.assert_allclose(
-        silhouette_scores,
-        expected_silhouette_scores,
-        rtol=1e-5,
-        atol=1e-5
-    )
+    # ================================= CLUSTERING =================================
+    # Performs the final four-cluster K-Means model selected from the
+    # model-evaluation stage.
+    model, clusters = perform_kmeans(X_scaled)
 
-    model, clusters = perform_kmeans(
-        X_scaled
-    )
+    # Confirms that the wrapper returns the fitted sklearn KMeans model
+    # expected by the clustering workflow.
+    assert isinstance(model, KMeans)
 
-    assert isinstance(
-        model,
-        KMeans
-    )
-
+    # The final notebook solution uses exactly four clusters. If this changes,
+    # the cluster assignments, sizes, profiles, and statistical tests will
+    # no longer correspond to the established analysis.
     assert model.n_clusters == 4
 
+    # There must be exactly one cluster assignment for every respondent.
+    # A different length would indicate that observations were lost or
+    # incorrectly assigned.
     assert len(clusters) == 757
 
-    assert len(
-        np.unique(clusters)
-    ) == 4
+    # There must be exactly one cluster assignment for every respondent.
+    # A different length would indicate that observations were lost or
+    # incorrectly assigned.
+    assert len(np.unique(clusters)) == 4
+    assert set(np.unique(clusters)) == {0, 1, 2, 3}
 
-    assert set(
-        np.unique(clusters)
-    ) == {
-        0,
-        1,
-        2,
-        3
-    }
+    # Confirms that all four expected cluster labels are actually present
+    # and that no unexpected cluster IDs were produced.
+    assert model.cluster_centers_.shape == (4, 6)
 
-    assert model.cluster_centers_.shape == (
-        4,
-        6
-    )
+    # Confirms that the K-Means model was actually fitted and contains
+    # the calculated within-cluster inertia.
+    assert hasattr(model, "inertia_")
 
-    assert hasattr(
-        model,
-        "inertia_"
-    )
+    # Confirms that the K-Means model was actually fitted and contains
+    # the calculated within-cluster inertia.
+    assert np.isfinite(model.cluster_centers_).all()
+    assert np.isfinite(clusters).all()
 
-    assert np.isfinite(
-        model.cluster_centers_
-    ).all()
+    # ================================= CLUSTER SIZES =================================
+    # Calculates the number of respondents assigned to each of the four
+    # final clusters.
+    result = get_cluster_sizes(clusters)
 
-    assert np.isfinite(
-        clusters
-    ).all()
+    assert isinstance(result, pd.Series)
 
-    result = get_cluster_sizes(
-        clusters
-    )
+    # Cluster labels must remain ordered as 0, 1, 2, and 3 so that each
+    # reported cluster size corresponds to the same cluster used throughout
+    # the notebook.
+    assert result.index.tolist() == [0, 1, 2, 3]
 
-    assert isinstance(
-        result,
-        pd.Series
-    )
-
-    assert result.index.tolist() == [
-        0,
-        1,
-        2,
-        3
-    ]
-
-    assert result.tolist() == [
-        97,
-        258,
-        20,
-        382
-    ]
-
+    # These are the exact cluster sizes established in the notebook.
+    # Checking the complete distribution ensures that the final K-Means
+    # assignments have not changed even if all four cluster labels are still
+    # technically present.
+    assert result.tolist() == [97, 258, 20, 382]
     assert result.name == "count"
 
+    # The four cluster sizes must account for all 757 respondents. This catches
+    # missing or duplicated assignments that could otherwise be hidden by
+    # checking the individual cluster counts alone.
     assert result.sum() == 757
 
-    assert (
-        result > 0
-    ).all()
+    # Every final cluster must contain at least one respondent. An empty
+    # cluster would make the corresponding cluster profile and statistical
+    # analysis invalid.
+    assert (result > 0).all()
 
+    # The four cluster sizes must account for all 757 respondents. This catches
+    # missing or duplicated assignments that could otherwise be hidden by
+    # checking the individual cluster counts alone.
     df["Cluster"] = clusters
+    result = calculate_cluster_profiles(df, FEATURES)
 
-    result = calculate_cluster_profiles(
-        df,
-        FEATURES
-    )
+    assert isinstance(result, pd.DataFrame)
 
-    assert isinstance(
-        result,
-        pd.DataFrame
-    )
+    # Four clusters and seven reported variables (six clustering constructs
+    # plus AUB) should produce a 4 x 7 profile table.
+    assert result.shape == (4, 7)
 
-    assert result.shape == (
-        4,
-        7
-    )
+    # The profile must contain the six clustering constructs followed by AUB.
+    # This ensures the same variables are being used to characterize each
+    # cluster as in the notebook.
+    assert result.columns.tolist() == (FEATURES + ["AUB"])
 
-    assert result.columns.tolist() == (
-        FEATURES + ["AUB"]
-    )
+    # The profile index must correspond to the four K-Means cluster labels.
+    # This keeps each profile associated with the correct cluster.
+    assert result.index.tolist() == [0, 1, 2, 3]
 
-    assert result.index.tolist() == [
-        0,
-        1,
-        2,
-        3
-    ]
+    # Every cluster-profile value must be finite. A missing or infinite mean
+    # would indicate a problem with the cluster assignments or source data.
+    assert np.isfinite(result.values).all()
 
-    assert np.isfinite(
-        result.values
-    ).all()
+    # All construct and AUB means should remain within the original
+    # questionnaire's 1-to-5 Likert scale. Values outside this range would
+    # indicate an invalid aggregation or corrupted source data.
+    assert (result[FEATURES] >= 1).all().all()
+    assert (result[FEATURES] <= 5).all().all()
+    assert (result["AUB"] >= 1).all()
+    assert (result["AUB"] <= 5).all()
 
-    assert (
-        result[FEATURES] >= 1
-    ).all().all()
-
-    assert (
-        result[FEATURES] <= 5
-    ).all().all()
-
-    assert (
-        result["AUB"] >= 1
-    ).all()
-
-    assert (
-        result["AUB"] <= 5
-    ).all()
-
+    # These are the cluster-profile values established from the notebook.
+    # Each row represents one cluster and each column represents one
+    # behavioral construct or AUB.
     expected_profiles = pd.DataFrame(
         [
             [
@@ -1010,59 +957,40 @@ def test_clustering_pipeline():
         columns=FEATURES + ["AUB"]
     )
 
-    np.testing.assert_allclose(
-        result.values,
-        expected_profiles.values,
-        rtol=1e-5,
-        atol=1e-5
-    )
+    # Compares the complete actual cluster-profile matrix against the
+    # established notebook results. This verifies that the final cluster
+    # composition and the resulting construct means remain unchanged.
+    np.testing.assert_allclose(result.values, expected_profiles.values, rtol=1e-5, atol=1e-5)
     
-    # =====================================================
-    # STATISTICAL INFERENCE
-    # =====================================================
+    # ================================= STATISTICAL INFERENCE =================================
+    # Reproduces the statistical tests performed on AUB across the four
+    # final clusters.
+    result = perform_shapiro_test(df)
 
-    result = perform_shapiro_test(
-        df
-    )
+    assert isinstance(result, list)
 
-    assert isinstance(
-        result,
-        list
-    )
-
+    # The Shapiro-Wilk test is performed separately for each cluster.
+    # Four clusters should therefore produce four results in cluster-label
+    # order.
     assert len(result) == 4
-
-    assert [
-        item[0]
-        for item in result
-    ] == [
-        0,
-        1,
-        2,
-        3
-    ]
+    assert [item[0] for item in result] == [0, 1, 2, 3]
 
     for cluster, statistic, p_value in result:
 
-        assert isinstance(
-            cluster,
-            (int, np.integer)
-        )
+        # Confirms that each result contains the expected cluster identifier,
+        # Shapiro-Wilk statistic, and p-value types.
+        assert isinstance(cluster, (int, np.integer))
+        assert isinstance(statistic, (float, np.floating))
+        assert isinstance(p_value, (float, np.floating))
 
-        assert isinstance(
-            statistic,
-            (float, np.floating)
-        )
-
-        assert isinstance(
-            p_value,
-            (float, np.floating)
-        )
-
+        # The Shapiro-Wilk statistic and p-value must both fall within their
+        # valid statistical ranges.
         assert 0 <= statistic <= 1
-
         assert 0 <= p_value <= 1
 
+    # These are the Shapiro-Wilk statistics and p-values obtained from the
+    # notebook. Checking them against the actual results verifies that the
+    # normality analysis remains reproducible for every cluster.
     expected_statistics = [
         0.8871,
         0.8512,
@@ -1077,105 +1005,65 @@ def test_clustering_pipeline():
         0.0000,
     ]
 
-    for (
-        (_, statistic, p_value),
-        expected_statistic,
-        expected_p_value
-    ) in zip(
-        result,
-        expected_statistics,
-        expected_p_values
-    ):
+    # Compares each cluster's actual statistic and p-value against the
+    # corresponding notebook result. This prevents one cluster from changing
+    # while the other three continue to pass.
+    for ((_, statistic, p_value), expected_statistic, expected_p_value) in zip(result, expected_statistics, expected_p_values):
+        assert statistic == pytest.approx(expected_statistic, abs=0.0001)
+        assert p_value == pytest.approx(expected_p_value, abs=0.0001)
 
-        assert statistic == pytest.approx(
-            expected_statistic,
-            abs=0.0001
-        )
+    # Performs the Kruskal-Wallis test on AUB across the four clusters.
+    # This is the main non-parametric test used to determine whether AUB
+    # differs significantly between the cluster groups.
+    H, p = perform_kruskal_wallis(df)
 
-        assert p_value == pytest.approx(
-            expected_p_value,
-            abs=0.0001
-        )
-
-    H, p = perform_kruskal_wallis(
-        df
-    )
-
-    assert isinstance(
-        H,
-        (float, np.floating)
-    )
-
-    assert isinstance(
-        p,
-        (float, np.floating)
-    )
+    # These values are the established Kruskal-Wallis results from the
+    # notebook. Checking both the statistic and p-value verifies not only
+    # the significance conclusion but also the underlying numerical result.
+    assert isinstance(H, (float, np.floating))
+    assert isinstance(p, (float, np.floating))
 
     assert H >= 0
     assert 0 <= p <= 1
 
-    assert H == pytest.approx(
-        421.3159298947122,
-        rel=1e-10
-    )
+    assert H == pytest.approx(421.3159298947122, rel=1e-10)
+    assert p == pytest.approx(5.341699041631374e-91, rel=1e-10)
 
-    assert p == pytest.approx(
-        5.341699041631374e-91,
-        rel=1e-10
-    )
-
+    # Confirms the statistical conclusion reported in the notebook:
+    # AUB differs significantly across the four clusters.
     assert p < 0.05
 
-    result = perform_dunn_test(
-        df
-    )
+    # Performs Dunn's post-hoc test to determine which specific cluster pairs
+    # differ in AUB after the significant Kruskal-Wallis result.
+    result = perform_dunn_test(df)
 
-    assert isinstance(
-        result,
-        pd.DataFrame
-    )
+    assert isinstance(result, pd.DataFrame)
 
-    assert result.shape == (
-        4,
-        4
-    )
+    # Four clusters should produce a 4 x 4 pairwise comparison matrix.
+    # The row and column labels must correspond to the same cluster IDs used
+    # throughout the analysis.
+    assert result.shape == (4, 4)
+    assert result.index.tolist() == [0, 1, 2, 3]
+    assert result.columns.tolist() == [0, 1, 2, 3]
 
-    assert result.index.tolist() == [
-        0,
-        1,
-        2,
-        3
-    ]
+    # Every Dunn comparison must produce a valid p-value between 0 and 1.
+    # These checks catch malformed or invalid statistical output.
+    assert np.isfinite(result.values).all()
+    assert (result.values >= 0).all()
+    assert (result.values <= 1).all()
 
-    assert result.columns.tolist() == [
-        0,
-        1,
-        2,
-        3
-    ]
+    # Every Dunn comparison must produce a valid p-value between 0 and 1.
+    # These checks catch malformed or invalid statistical output.
+    assert np.allclose(np.diag(result), 1)
 
-    assert np.isfinite(
-        result.values
-    ).all()
+    # Pairwise comparisons are symmetric: the comparison between clusters
+    # 0 and 1 must be identical to the comparison between clusters 1 and 0.
+    # This confirms that the matrix has been constructed consistently.
+    np.testing.assert_allclose(result.values, result.values.T)
 
-    assert (
-        result.values >= 0
-    ).all()
-
-    assert (
-        result.values <= 1
-    ).all()
-
-    assert np.allclose(
-        np.diag(result),
-        1
-    )
-
-    np.testing.assert_allclose(
-        result.values,
-        result.values.T
-    )
-
+    # Pairwise comparisons are symmetric: the comparison between clusters
+    # 0 and 1 must be identical to the comparison between clusters 1 and 0.
+    # This confirms that the matrix has been constructed consistently.
     expected_dunn = pd.DataFrame(
         [
             [1.0000, 0.0000, 0.0000, 0.0000],
@@ -1187,18 +1075,20 @@ def test_clustering_pipeline():
         columns=[0, 1, 2, 3]
     )
 
-    np.testing.assert_allclose(
-        result.round(4).values,
-        expected_dunn.values,
-        rtol=1e-5,
-        atol=1e-5
-    )
+    # Compares the complete actual Dunn matrix against the established
+    # notebook matrix. This verifies that every pairwise comparison remains
+    # consistent with the original statistical analysis.
+    np.testing.assert_allclose(result.round(4).values, expected_dunn.values, rtol=1e-5, atol=1e-5)
 
+    # These cluster pairs were identified as having statistically significant
+    # differences in AUB in the notebook. Checking each pair ensures that the
+    # reported post-hoc interpretation has not changed.
     assert result.loc[0, 1] < 0.05
     assert result.loc[0, 2] < 0.05
     assert result.loc[0, 3] < 0.05
     assert result.loc[1, 3] < 0.05
     assert result.loc[2, 3] < 0.05
+
 
 def test_machine_learning_pipeline():
     """
@@ -1348,6 +1238,26 @@ def test_machine_learning_pipeline():
     assert rf_mae >= 0
     assert mlp_mae >= 0
 
+
+# The following system integration test checks:
+# - If the complete system can execute from the raw dataset through
+#   preprocessing, EDA, clustering, statistical inference, and machine
+#   learning without breaking the data flow between stages.
+# - If each stage produces the expected output required by the next stage.
+# - If the final results remain consistent with the established
+#   notebook workflow.
+#
+# This test will fail if:
+# - Dataset loading or validation changes.
+# - Data cleaning changes.
+# - Composite-score calculations change.
+# - EDA results change.
+# - Clustering features or standardization change.
+# - K-Means results change.
+# - Statistical inference results change.
+# - Machine-learning inputs or model results change.
+# - Any upstream change causes the final system results to differ from
+#   the established notebook baseline.
 def test_system_pipeline():
     """
 
@@ -1355,42 +1265,79 @@ def test_system_pipeline():
     feature engineer -> EDA -> cluster -> statistical inference ->
     machine learning. One `df`, one continuous flow, start to finish.
     """
-    # 1. DATASET LOADING
+    
+    # ================================= 1. DATASET LOADING =================================
+    # Loads the raw dataset and verifies that the system begins with the
+    # same data structure used by the individual preprocessing, EDA,
+    # clustering, and machine-learning stages.
     df = load_dataset(DATASET_PATH)
 
+    # Confirms that the dataset loader returns the expected pandas DataFrame
+    # required by all subsequent pipeline stages.
     assert isinstance(df, pd.DataFrame)
+
+    # Locks in the raw dataset dimensions before any transformation occurs.
+    # If respondents or variables are lost at this first stage, every
+    # downstream result would be based on different data.
     assert df.shape == (757, 31)
+
+    # Confirms that the raw variables have the expected names and order.
+    # This prevents a renamed, missing, or reordered questionnaire item from
+    # silently propagating through the entire system.
     assert df.columns.tolist() == EXPECTED_COLUMNS
 
+    # Independently verifies that inspect_dataset() reports the same dimensions
+    # as the dataframe itself. This confirms that the validation wrapper is
+    # correctly connected to the loaded dataset.
     rows, columns = inspect_dataset(df)
     assert rows == 757
     assert columns == 31
 
+    # Confirms that the validation function reads and returns the actual
+    # dataset schema rather than using a stale or hardcoded column list.
     assert validate_columns(df) == EXPECTED_COLUMNS
 
+    # Confirms that the raw dataset retains the expected data types.
+    # Unexpected type changes can alter calculations later in the pipeline,
+    # especially when computing composite scores.
     dtypes = validate_dtypes(df)
     pd.testing.assert_series_equal(dtypes, df.dtypes)
     assert dtypes.eq("int64").all()
 
+    # Confirms that no missing values have entered the system before
+    # preprocessing. This is important because later composite-score,
+    # clustering, statistical, and machine-learning calculations depend
+    # on complete observations.
     missing = check_missing_values(df)
     expected_missing = pd.Series([0] * len(EXPECTED_COLUMNS), index=EXPECTED_COLUMNS)
     pd.testing.assert_series_equal(missing, expected_missing)
 
+    # Confirms that duplicate detection produces the same result for the
+    # source dataset. Duplicate respondents are retained, so this verifies
+    # that the system does not silently remove them.
     duplicates = find_duplicates(df)
     assert duplicates.shape == (129, 31)
 
+    # Confirms that the categorical and Likert-scale values remain exactly
+    # within the expected categories. This protects the system against
+    # malformed survey responses entering downstream analysis.
     unique_summary = validate_unique_values(df)
     assert list(unique_summary.columns) == ["Variable", "Unique Count", "Unique Values"]
     assert unique_summary["Variable"].tolist() == EXPECTED_COLUMNS
     assert unique_summary["Unique Count"].tolist() == EXPECTED_UNIQUE_COUNTS
     assert unique_summary["Unique Values"].tolist() == EXPECTED_UNIQUE_VALUES
 
-    # 2. DATA CLEANING
+    # ================================= 2. DATA CLEANING =================================
+    # Applies the same column-removal decisions established during
+    # preprocessing before the dataset is passed to feature engineering.
     df = drop_columns(df, ["PEU4"])
 
     expected_columns = EXPECTED_COLUMNS.copy()
     expected_columns.remove("PEU4")
 
+    # PEU4 must be removed while all 757 observations and the remaining
+    # columns are preserved. Checking the shape, column order, and specific
+    # column name ensures that the correct variable was removed.
     assert df.shape == (757, 30)
     assert df.columns.tolist() == expected_columns
     assert "PEU4" not in df.columns
@@ -1399,16 +1346,29 @@ def test_system_pipeline():
 
     expected_columns.remove("Job")
 
+    # Job must also be removed from the dataset before downstream analysis.
+    # The checks confirm that exactly one additional column was removed and
+    # that no other variables were unintentionally affected.
     assert df.shape == (757, 29)
     assert df.columns.tolist() == expected_columns
     assert "Job" not in df.columns
 
-    # 3. FEATURE ENGINEERING
+    # ================================= 3. FEATURE ENGINEERING =================================
+    # Recreates the composite scores used throughout the rest of the system.
+    # Because these constructs feed both the EDA and modeling stages, any
+    # change in their calculation can propagate to the final results.
     for construct, items in COMPOSITES.items():
         df = compute_composite_score(df, items, construct)
 
+    # Seven composite constructs are added to the cleaned dataset, increasing
+    # the dataset from 29 to 36 columns. This confirms that every required
+    # construct was created without removing the existing variables.
     assert df.shape == (757, 36)
 
+    # These respondent-level checks compare the actual composite calculations
+    # against established values from the notebook. Checking multiple rows,
+    # including the first, middle, and last observations, helps detect
+    # incorrect item selection or averaging logic.
     assert df.loc[0, "PU"] == 4
     assert df.loc[1, "PU"] == 3
     assert df.loc[100, "PU"] == 3
@@ -1444,7 +1404,14 @@ def test_system_pipeline():
     assert df.loc[100, "AUB"] == 3
     assert df.loc[756, "AUB"] == 4
 
-    # 4. EDA -- DEMOGRAPHIC DISTRIBUTIONS
+    # ================================= 4. EDA -- DEMOGRAPHIC DISTRIBUTIONS =================================
+    # Reproduces the demographic summaries used during exploratory analysis.
+    # These checks confirm that the same respondents remain in each demographic
+    # category after preprocessing.
+    
+    # Checks the exact respondent counts for each category. The category
+    # counts must collectively account for all 757 respondents so that no
+    # observations are silently lost or reassigned.
     gender = get_gender_distribution(df)
     assert gender["Male"] == 167
     assert gender["Female"] == 588
@@ -1472,7 +1439,11 @@ def test_system_pipeline():
     assert frequency["Rarely Used"] == 11
     assert frequency.sum() == 757
 
-    # 5. EDA -- CONSTRUCT DESCRIPTIVES
+    # ================================= 5. EDA -- CONSTRUCT DESCRIPTIVES =================================
+    # Reproduces the descriptive statistics for the seven composite constructs.
+    #
+    # These checks ensure that the construct-level summaries remain consistent
+    # with the corrected composite scores produced earlier in the pipeline.
     descriptives = get_construct_descriptives(df)
     assert descriptives.columns.tolist() == ["PU", "PEU", "FSC", "SP", "TP", "IB", "AUB"]
     assert descriptives.loc["count"].tolist() == [757] * 7
@@ -1485,7 +1456,12 @@ def test_system_pipeline():
     assert descriptives.loc["mean", "IB"] == pytest.approx(3.61, abs=0.01)
     assert descriptives.loc["mean", "AUB"] == pytest.approx(3.68, abs=0.01)
 
-    # 6. EDA -- CORRELATION MATRIX
+    # ================================= 6. EDA -- CORRELATION MATRIX =================================
+    # Reproduces the construct correlation matrix used in the notebook.
+    #
+    # The correlations are especially useful for detecting changes to one
+    # composite construct because a change in that construct can alter every
+    # correlation involving it.
     corr = get_construct_correlation_matrix(df)
 
     assert corr.loc["PU", "PEU"] == pytest.approx(0.788226, abs=0.001)
@@ -1518,7 +1494,13 @@ def test_system_pipeline():
     for construct in corr.columns:
         assert corr.loc[construct, construct] == pytest.approx(1.0)
 
-    # 7. EDA -- T-TEST / ANOVA / GROUP SUMMARIES
+    # ================================= 7. EDA -- STATISTICAL TESTS =================================
+    # Reproduces the inferential EDA results comparing AUB across demographic
+    # groups.
+    #
+    # Both the numerical test results and their statistical conclusions are
+    # checked so that a change in the underlying analysis cannot silently
+    # alter the reported interpretation.
     t_stat, p_value = run_ttest_aub_gender(df)
     assert t_stat == pytest.approx(-0.417, abs=0.01)
     assert p_value == pytest.approx(0.677, abs=0.01)
@@ -1556,7 +1538,13 @@ def test_system_pipeline():
     assert frequency_summary.loc["Monthly", "count"] == 7
     assert frequency_summary.loc["Rarely Used", "count"] == 11
 
-    # 8. CLUSTERING -- FEATURE SELECTION + SCALING
+    # ================================= 8. CLUSTERING -- FEATURE SELECTION + SCALING =================================
+    # Passes the already-prepared composite constructs into the clustering
+    # stage.
+    #
+    # These checks confirm that the system uses exactly the same six behavioral
+    # constructs and the same standardization procedure established in the
+    # dedicated clustering pipeline.
     result = select_features(df, FEATURES)
     assert isinstance(result, pd.DataFrame)
     assert result.shape == (757, 6)
@@ -1578,7 +1566,11 @@ def test_system_pipeline():
 
     X_scaled = standardize_features(X)
 
-    # 9. CLUSTERING -- MULTICOLLINEARITY (VIF)
+    # ================================= 9. CLUSTERING -- MULTICOLLINEARITY (VIF) =================================
+    # Reproduces the VIF analysis within the full system flow.
+    #
+    # Checking the established VIF values ensures that the same standardized
+    # feature relationships are reaching the clustering analysis.
     result = calculate_vif(X_scaled, FEATURES)
     assert isinstance(result, pd.DataFrame)
     assert result.columns.tolist() == ["Construct", "VIF"]
@@ -1590,7 +1582,12 @@ def test_system_pipeline():
     expected_vif = [3.654939, 3.515319, 3.988501, 3.150629, 2.709242, 2.301402]
     np.testing.assert_allclose(result["VIF"].values, expected_vif, rtol=1e-5, atol=1e-5)
 
-    # 10. CLUSTERING -- K SELECTION
+    # ================================= 10. CLUSTERING -- K SELECTION =================================
+    # Reproduces the K-Means model-selection stage within the complete system.
+    #
+    # Both the model behavior and the established notebook values are checked
+    # so that an upstream change cannot silently alter the candidate-cluster
+    # evaluation.
     k_values = range(2, 11)
     inertia, silhouette_scores = evaluate_kmeans_clusters(X_scaled, k_values)
 
@@ -1618,7 +1615,12 @@ def test_system_pipeline():
     np.testing.assert_allclose(inertia, expected_inertia, rtol=1e-5, atol=1e-5)
     np.testing.assert_allclose(silhouette_scores, expected_silhouette_scores, rtol=1e-5, atol=1e-5)
 
-    # 11. CLUSTERING -- K-MEANS
+    # ================================= 11. CLUSTERING -- FINAL K-MEANS =================================
+    # Performs the final four-cluster solution used throughout the remainder
+    # of the system.
+    #
+    # The checks confirm that every respondent receives a valid cluster
+    # assignment and that all four expected clusters are present.
     model, clusters = perform_kmeans(X_scaled)
 
     assert isinstance(model, KMeans)
@@ -1631,6 +1633,9 @@ def test_system_pipeline():
     assert np.isfinite(model.cluster_centers_).all()
     assert np.isfinite(clusters).all()
 
+    # Confirms that the final cluster assignments reproduce the established
+    # respondent distribution across clusters. The total is also checked to
+    # ensure that all 757 observations are accounted for.
     result = get_cluster_sizes(clusters)
     assert isinstance(result, pd.Series)
     assert result.index.tolist() == [0, 1, 2, 3]
@@ -1641,7 +1646,12 @@ def test_system_pipeline():
 
     df["Cluster"] = clusters
 
-    # 12. CLUSTERING -- CLUSTER PROFILES
+    # ================================= 12. CLUSTERING -- CLUSTER PROFILES =================================
+    # Summarizes the behavioral constructs and AUB within each final cluster.
+    #
+    # These values are used to interpret the characteristics of the clusters,
+    # so reproducing the notebook profile values confirms that the same
+    # respondents were assigned to the same behavioral groups.
     result = calculate_cluster_profiles(df, FEATURES)
     assert isinstance(result, pd.DataFrame)
     assert result.shape == (4, 7)
@@ -1653,6 +1663,9 @@ def test_system_pipeline():
     assert (result["AUB"] >= 1).all()
     assert (result["AUB"] <= 5).all()
 
+    # The expected profile matrix comes from the established notebook output.
+    # Comparing every value ensures that the complete cluster composition,
+    # rather than only the cluster sizes, remains unchanged.
     expected_profiles = pd.DataFrame(
         [
             [4.6391752577, 4.5841924399, 4.7079037801, 4.5773195876, 4.4707903780, 4.5257731959, 4.4664948454],
@@ -1666,7 +1679,17 @@ def test_system_pipeline():
 
     np.testing.assert_allclose(result.values, expected_profiles.values, rtol=1e-5, atol=1e-5)
 
-    # 13. CLUSTERING -- STATISTICAL INFERENCE ACROSS CLUSTERS
+    # ================================= 13. CLUSTERING -- STATISTICAL INFERENCE =================================
+    # Reproduces the statistical analysis performed after the final clusters
+    # have been created.
+    #
+    # Because these tests depend directly on cluster membership and AUB,
+    # changes to the clustering stage can propagate into these results.
+    # Checking the established statistics therefore verifies the complete
+    # downstream analytical chain.
+
+    # The Shapiro-Wilk results are checked for every cluster to confirm that
+    # the normality analysis receives the same AUB observations as the notebook.
     result = perform_shapiro_test(df)
     assert isinstance(result, list)
     assert len(result) == 4
@@ -1688,6 +1711,9 @@ def test_system_pipeline():
         assert statistic == pytest.approx(expected_statistic, abs=0.0001)
         assert p_value == pytest.approx(expected_p_value, abs=0.0001)
 
+    # The Kruskal-Wallis statistic and p-value are checked against the notebook
+    # to confirm that the overall conclusion about differences in AUB across
+    # clusters remains unchanged.
     H, p = perform_kruskal_wallis(df)
     assert isinstance(H, (float, np.floating))
     assert isinstance(p, (float, np.floating))
@@ -1697,6 +1723,10 @@ def test_system_pipeline():
     assert p == pytest.approx(5.341699041631374e-91, rel=1e-10)
     assert p < 0.05
 
+    # Dunn's post-hoc results are checked as a complete pairwise matrix.
+    # This verifies not only that the overall Kruskal-Wallis conclusion remains
+    # significant, but also that the specific cluster-to-cluster differences
+    # remain consistent with the notebook.
     result = perform_dunn_test(df)
     assert isinstance(result, pd.DataFrame)
     assert result.shape == (4, 4)
@@ -1727,7 +1757,12 @@ def test_system_pipeline():
     assert result.loc[1, 3] < 0.05
     assert result.loc[2, 3] < 0.05
 
-    # 14. MACHINE LEARNING -- FEATURE & TARGET SELECTION
+    # ================================= 14. MACHINE LEARNING -- FEATURE & TARGET SELECTION =================================
+    # Passes the completed dataset into the machine-learning stage.
+    #
+    # The six behavioral constructs are used as predictors and AUB is used
+    # as the prediction target, matching the modeling workflow established
+    # in the notebook.
     X = ml_select_features(df, FEATURES)
     y = select_target(df, "AUB")
 
@@ -1739,7 +1774,12 @@ def test_system_pipeline():
     assert len(y) == 757
     assert y.name == "AUB"
 
-    # 15. MACHINE LEARNING -- SPLIT + SCALE
+    # ================================= 15. MACHINE LEARNING -- SPLIT + SCALE =================================
+    # Partitions the dataset into training and testing sets using the same
+    # test size and random state as the notebook.
+    #
+    # The fixed dimensions ensure that the same number of observations and
+    # predictors reach model training and evaluation.
     X_train, X_test, y_train, y_test = split_dataset(X, y, test_size=0.20, random_state=1)
 
     assert X_train.shape == (605, 6)
@@ -1747,6 +1787,10 @@ def test_system_pipeline():
     assert len(y_train) == 605
     assert len(y_test) == 152
 
+    # Standardizes the training and testing predictors using the machine-
+    # learning preprocessing procedure. The training statistics must be used
+    # consistently so that information from the test set does not influence
+    # model training.
     scaler, X_train_scaled, X_test_scaled = ml_standardize_features(X_train, X_test)
 
     assert X_train_scaled.shape == X_train.shape
@@ -1754,23 +1798,34 @@ def test_system_pipeline():
     assert np.allclose(X_train_scaled.mean(axis=0), 0, atol=1e-7)
     assert np.allclose(X_train_scaled.std(axis=0), 1, atol=1e-7)
 
+    # Creates the same 10-fold cross-validation configuration used during
+    # hyperparameter tuning. Keeping the number of folds and shuffle behavior
+    # consistent ensures comparable model-selection results.
     kf = create_kfold(n_splits=10, shuffle=True, random_state=1)
     assert kf.get_n_splits() == 10
     assert kf.shuffle is True
 
-    # 16. MACHINE LEARNING -- RANDOM FOREST
+    # ================================= 16. MACHINE LEARNING -- RANDOM FOREST =================================
+    # Reproduces the complete Random Forest model-selection and evaluation
+    # workflow used in the notebook.
     rf_param_grid = create_rf_param_grid()
     assert "n_estimators" in rf_param_grid
     assert "max_depth" in rf_param_grid
 
+    # Confirms that the expected Random Forest hyperparameters are available
+    # for grid-search tuning.
     rf_grid = create_rf_gridsearch(rf_param_grid, kf, n_jobs=1)
     assert isinstance(rf_grid, GridSearchCV)
     assert isinstance(rf_grid.estimator, RandomForestRegressor)
 
+    # Confirms that the wrapper constructs the expected sklearn GridSearchCV
+    # object using a Random Forest regressor.
     rf_fitted = fit_rf_gridsearch(rf_grid, X_train, y_train)
     assert hasattr(rf_fitted, "best_estimator_")
     assert hasattr(rf_fitted, "best_params_")
 
+    # Confirms that hyperparameter search successfully completed and produced
+    # both a best estimator and best parameter configuration.
     rf_best_params, rf_best_mse = get_best_rf_params(rf_fitted)
     assert isinstance(rf_best_params, dict)
     assert rf_best_mse >= 0
@@ -1782,21 +1837,30 @@ def test_system_pipeline():
     rf_model = get_best_rf_model(rf_fitted)
     assert isinstance(rf_model, RandomForestRegressor)
 
+    # Generates predictions for the held-out test set. The prediction count
+    # must match the number of test observations so that regression metrics
+    # are calculated on corresponding actual and predicted values.
     rf_predictions = predict_rf(rf_model, X_test)
     assert isinstance(rf_predictions, np.ndarray)
     assert len(rf_predictions) == len(y_test)
 
     rf_mae, rf_mse, rf_rmse, rf_r2 = evaluate_regression(y_test, rf_predictions)
 
-    # 17. MACHINE LEARNING -- MLP
+    # ================================= 17. MACHINE LEARNING -- MLP =================================
+    # Reproduces the complete MLP model-selection and evaluation workflow
+    # used in the notebook.
     mlp_param_grid = create_mlp_param_grid()
     assert "hidden_layer_sizes" in mlp_param_grid
     assert "learning_rate_init" in mlp_param_grid
 
+    # Confirms that the expected MLP hyperparameters are available for
+    # neural-network tuning.
     mlp_grid = create_mlp_gridsearch(mlp_param_grid, kf, n_jobs=1)
     assert isinstance(mlp_grid, GridSearchCV)
     assert isinstance(mlp_grid.estimator, MLPRegressor)
 
+        # Confirms that the MLP grid search successfully completed and produced
+        # a fitted best estimator and best parameter configuration.
     mlp_fitted = fit_mlp_gridsearch(mlp_grid, X_train_scaled, y_train)
     assert hasattr(mlp_fitted, "best_estimator_")
     assert hasattr(mlp_fitted, "best_params_")
@@ -1807,18 +1871,26 @@ def test_system_pipeline():
     mlp_model = get_best_mlp_model(mlp_fitted)
     assert isinstance(mlp_model, MLPRegressor)
 
+    # Generates MLP predictions for the held-out test observations.
+    # The prediction length must match y_test so that the resulting
+    # regression metrics are valid.
     mlp_predictions = predict_mlp(mlp_model, X_test_scaled)
     assert isinstance(mlp_predictions, np.ndarray)
     assert len(mlp_predictions) == len(y_test)
 
     mlp_mae, mlp_mse, mlp_rmse, mlp_r2 = evaluate_regression(y_test, mlp_predictions)
 
-    # 18. MACHINE LEARNING -- MODEL COMPARISON
+    # ================================= 18. MACHINE LEARNING -- MODEL COMPARISON =================================
+    # Compares the final Random Forest and MLP regression results using the
+    # same evaluation metrics reported in the notebook.
     comparison = compare_models(
         rf_mae, rf_mse, rf_rmse, rf_r2,
         mlp_mae, mlp_mse, mlp_rmse, mlp_r2,
     )
 
+    # The comparison table should contain exactly two models and the four
+    # regression metrics used by the project. This ensures that the final
+    # model-comparison output retains the expected structure.
     assert isinstance(comparison, pd.DataFrame)
     assert comparison.shape == (2, 5)
     assert comparison["Model"].tolist() == ["Random Forest", "MLP"]
@@ -1827,6 +1899,11 @@ def test_system_pipeline():
     assert comparison["RMSE"].notna().all()
     assert comparison["R²"].notna().all()
 
+    # Confirms that both models maintain the established minimum performance
+    # baseline. These checks are intentionally based on model performance
+    # thresholds rather than exact floating-point values because machine-
+    # learning optimization can produce small numerical differences while
+    # still satisfying the established performance requirement.
     assert rf_r2 > 0.70
     assert mlp_r2 > 0.65
     assert rf_rmse < 0.45
