@@ -187,34 +187,62 @@ def test_preprocessing_and_eda_pipeline():
     preprocessing and EDA workflow.
     """
 
-    # =====================================================
-    # DATASET LOADING
-    # =====================================================
-
+    # ================================= DATASET LOADING =================================
     df = load_dataset(DATASET_PATH)
 
+    # Confirms load_dataset() returns the right TYPE, not just "something".
+    # If someone accidentally returns a dict, list, or numpy array instead
+    # of a DataFrame, this catches it immediately.
     assert isinstance(df, pd.DataFrame)
+
+    # Locks in the exact shape of the RAW dataset (before any cleaning).
+    # 757 rows, 31 columns. If a row gets silently dropped during CSV
+    # loading (e.g. bad encoding, a stray blank line) or a column gets
+    # added/removed upstream, this fails immediately.
     assert df.shape == (757, 31)
+
+    # Checks column NAMES and ORDER against EXPECTED_COLUMNS. This is
+    # the check that catches the "PU1 -> zz" style mutation: a renamed
+    # column, a reordered column, or a typo in a header would all fail
+    # here even though df.shape would still look fine.
     assert df.columns.tolist() == EXPECTED_COLUMNS
 
     rows, columns = inspect_dataset(df)
 
+    # Redundant with df.shape above on purpose -- this verifies
+    # inspect_dataset() itself is wired correctly (unpacks rows/columns
+    # in the right order), not just that the raw dataframe is correct.
     assert rows == 757
     assert columns == 31
 
+    # validate_columns() should return the same column list as
+    # df.columns.tolist(). This guards against the function silently
+    # returning a stale or hardcoded list instead of reading live data.
     assert validate_columns(df) == EXPECTED_COLUMNS
 
     dtypes = validate_dtypes(df)
 
+    # Confirms validate_dtypes() returns the ACTUAL dtypes of df, not a
+    # copy, a guess, or a hardcoded Series. pd.testing.assert_series_equal
+    # is used instead of == because Series comparison needs to check
+    # index alignment too, not just values.
     pd.testing.assert_series_equal(
         dtypes,
         df.dtypes
     )
 
+    # Every column in this dataset should be int64 (Likert-scale /
+    # categorical codes). If someone reads the CSV with a stray decimal
+    # point or a text value in one cell, pandas silently upcasts that
+    # column to float64 or object -- this assertion catches that.
     assert dtypes.eq("int64").all()
 
     missing = check_missing_values(df)
 
+    # Builds the expected "0 missing values per column" Series and
+    # compares it exactly. This is the test that would fail if a future
+    # version of the dataset introduces NaNs (e.g. a respondent skips
+    # a question) that the rest of the pipeline isn't built to handle.
     expected_missing = pd.Series(
         [0] * len(EXPECTED_COLUMNS),
         index=EXPECTED_COLUMNS
@@ -227,29 +255,51 @@ def test_preprocessing_and_eda_pipeline():
 
     duplicates = find_duplicates(df)
 
+    # 129 duplicate rows is a known, expected property of THIS dataset
+    # (Likert-scale survey responses collide often since there are only
+    # a handful of possible answer combinations). If this number changes,
+    # either the dataset changed or find_duplicates() logic changed,
+    # both are worth knowing about.
     assert duplicates.shape == (129, 31)
 
     unique_summary = validate_unique_values(df)
 
+    # Checks the *shape* of the summary table itself, right column
+    # names, in the right order. A broken validate_unique_values() might
+    # still run without error but return columns in the wrong order or
+    # under different names.
     assert list(unique_summary.columns) == [
         "Variable",
         "Unique Count",
         "Unique Values"
     ]
 
+    # Three separate checks on the CONTENT of the summary:
+    # - "Variable" column lists every column, in order
+    # - "Unique Count" matches how many distinct values each column has
+    #   (e.g. Gender should have exactly 3, Job should have exactly 1)
+    # - "Unique Values" matches the exact set of values (e.g. Gender
+    #   should only ever contain 1, 2, 3 -- never a stray 4 or a 0)
+    # Together these catch bad survey data (out-of-range answers) as
+    # well as bugs in how validate_unique_values() computes things.
     assert unique_summary["Variable"].tolist() == EXPECTED_COLUMNS
     assert unique_summary["Unique Count"].tolist() == EXPECTED_UNIQUE_COUNTS
     assert unique_summary["Unique Values"].tolist() == EXPECTED_UNIQUE_VALUES
 
-    # =====================================================
-    # DATA CLEANING
-    # =====================================================
-
+    # ================================= DATA CLEANING =================================
     df = drop_columns(df, ["PEU4"])
 
     expected_columns = EXPECTED_COLUMNS.copy()
     expected_columns.remove("PEU4")
 
+    # Three angles on the same fact, checked separately on purpose:
+    # 1. Overall shape shrank by exactly 1 column (757, 30)
+    # 2. The remaining column order still matches everything else
+    #    that was untouched
+    # 3. PEU4 specifically is gone, not just "some column" is gone
+    # If drop_columns() ever drops the WRONG column by mistake, (1) and
+    # (2) would still pass but (3) would fail -- that's why all three
+    # checks exist instead of just one.
     assert df.shape == (757, 30)
     assert df.columns.tolist() == expected_columns
     assert "PEU4" not in df.columns
@@ -258,13 +308,15 @@ def test_preprocessing_and_eda_pipeline():
 
     expected_columns.remove("Job")
 
+    # Same three-angle check, now for Job. Job only had 1 unique value
+    # across all 757 respondents (see EXPECTED_UNIQUE_COUNTS above), so
+    # it carries zero variance and zero explanatory power -- that's why
+    # it's dropped, and this locks that decision in.
     assert df.shape == (757, 29)
     assert df.columns.tolist() == expected_columns
     assert "Job" not in df.columns
 
-    # =====================================================
-    # FEATURE ENGINEERING
-    # =====================================================
+    # ================================= FEATURE ENGINEERING =================================
 
     composites = {
         "PU": ["PU1", "PU2", "PU3", "PU4"],
@@ -283,8 +335,19 @@ def test_preprocessing_and_eda_pipeline():
             construct
         )
 
+    # 29 columns before + 7 new composite columns = 36. This alone
+    # wouldn't catch a WRONG composite calculation, which is exactly
+    # why the row-level checks below exist too.
     assert df.shape == (757, 36)
 
+    # Each block below checks 4 specific respondents (row 0, row 1, row
+    # 100, and the last row 756) for each construct. This is the "test
+    # against real dataset values" approach from the professor's
+    # feedback -- these are the exact numbers those rows should produce
+    # if the mean-of-items formula is applied correctly to the real
+    # data. If a composite is accidentally computed from the wrong
+    # columns (like the SP1-SP3-instead-of-SP1-SP4 bug found earlier),
+    # these values shift and the test catches it.
     assert df.loc[0, "PU"] == 4
     assert df.loc[1, "PU"] == 3
     assert df.loc[100, "PU"] == 3
@@ -293,6 +356,9 @@ def test_preprocessing_and_eda_pipeline():
     assert df.loc[0, "PEU"] == 4
     assert df.loc[1, "PEU"] == 3
     assert df.loc[100, "PEU"] == 3
+    # PEU is a 3-item average that doesn't divide evenly, hence
+    # pytest.approx() instead of an exact == comparison -- floating
+    # point division won't land on a perfectly round number here.
     assert df.loc[756, "PEU"] == pytest.approx(4.333333333333333)
 
     assert df.loc[0, "FSC"] == 4
@@ -300,6 +366,10 @@ def test_preprocessing_and_eda_pipeline():
     assert df.loc[100, "FSC"] == 3
     assert df.loc[756, "FSC"] == pytest.approx(4.333333333333333)
 
+    # SP is the construct that broke earlier when it was silently
+    # recomputed from only SP1-SP3 instead of SP1-SP4. This assertion
+    # is the regression check for that exact bug -- if it ever creeps
+    # back in, df.loc[756, "SP"] stops being 4.5.
     assert df.loc[0, "SP"] == 4
     assert df.loc[1, "SP"] == 3
     assert df.loc[100, "SP"] == 3
@@ -315,17 +385,22 @@ def test_preprocessing_and_eda_pipeline():
     assert df.loc[100, "IB"] == 3
     assert df.loc[756, "IB"] == 4
 
+    # AUB is the eventual prediction target for the ML pipeline (SCT-003),
+    # so getting this composite right matters beyond just EDA -- a bug
+    # here would silently corrupt the ML model's training labels too.
     assert df.loc[0, "AUB"] == 4
     assert df.loc[1, "AUB"] == 3
     assert df.loc[100, "AUB"] == 3
     assert df.loc[756, "AUB"] == 4
 
-    # =====================================================
-    # DEMOGRAPHIC DISTRIBUTIONS
-    # =====================================================
+    # ================================= DEMOGRAPHIC DISTRIBUTIONS =================================
 
     gender = get_gender_distribution(df)
 
+    # Exact respondent counts per category, taken straight from the
+    # notebook's own reported output. Checking .sum() == 757 alongside
+    # the individual categories confirms no respondents got silently
+    # dropped or double-counted by value_counts()/groupby().
     assert gender["Male"] == 167
     assert gender["Female"] == 588
     assert gender["Different"] == 2
@@ -355,12 +430,13 @@ def test_preprocessing_and_eda_pipeline():
     assert frequency["Rarely Used"] == 11
     assert frequency.sum() == 757
 
-    # =====================================================
-    # CONSTRUCT DESCRIPTIVES
-    # =====================================================
+    # ================================= CONSTRUCT DESCRIPTIVES =================================
 
     descriptives = get_construct_descriptives(df)
 
+    # Confirms describe() was called on exactly the 7 composite columns,
+    # in this order -- not on the raw item-level columns (PU1-PU4 etc.)
+    # by mistake, and not with extra/missing constructs.
     assert descriptives.columns.tolist() == [
         "PU",
         "PEU",
@@ -371,8 +447,16 @@ def test_preprocessing_and_eda_pipeline():
         "AUB",
     ]
 
+    # All 757 respondents contributed to every construct's stats --
+    # if any construct's composite score computation produced NaNs
+    # (e.g. one questionnaire item had a missing value that wasn't
+    # caught earlier), describe()'s count would drop below 757.
     assert descriptives.loc["count"].tolist() == [757] * 7
 
+    # Rounded to 2 decimals with abs=0.01 tolerance because these are
+    # the values reported in the write-up (which itself only reports
+    # 2 decimal places) -- not because the underlying computation is
+    # imprecise.
     assert descriptives.loc["mean", "PU"] == pytest.approx(3.77, abs=0.01)
     assert descriptives.loc["mean", "PEU"] == pytest.approx(3.70, abs=0.01)
     assert descriptives.loc["mean", "FSC"] == pytest.approx(3.73, abs=0.01)
@@ -381,12 +465,18 @@ def test_preprocessing_and_eda_pipeline():
     assert descriptives.loc["mean", "IB"] == pytest.approx(3.61, abs=0.01)
     assert descriptives.loc["mean", "AUB"] == pytest.approx(3.68, abs=0.01)
 
-    # =====================================================
-    # CORRELATION MATRIX
-    # =====================================================
+    # ================================= CORRELATION MATRIX =================================
 
     corr = get_construct_correlation_matrix(df)
 
+    # Tolerance here is tighter (abs=0.001) than the descriptives above
+    # because these values were pulled directly from running
+    # get_construct_correlation_matrix() on the real, corrected data
+    # (full precision), not eyeballed off a rounded write-up table.
+    # Every pair below is checked individually so a bug affecting just
+    # ONE construct (like the earlier SP mutation) shows up as isolated
+    # failures on the SP-* pairs specifically, not a vague "matrix is
+    # wrong somewhere" failure.
     assert corr.loc["PU", "PEU"] == pytest.approx(0.788226, abs=0.001)
     assert corr.loc["PU", "FSC"] == pytest.approx(0.804070, abs=0.001)
     assert corr.loc["PU", "SP"] == pytest.approx(0.718057, abs=0.001)
@@ -405,6 +495,9 @@ def test_preprocessing_and_eda_pipeline():
     assert corr.loc["FSC", "IB"] == pytest.approx(0.657147, abs=0.001)
     assert corr.loc["FSC", "AUB"] == pytest.approx(0.744687, abs=0.001)
 
+    # These three (SP-TP, SP-IB, SP-AUB) are exactly the pairs that
+    # shifted when the SP composite bug was fixed -- they're the most
+    # sensitive part of this whole matrix to a regression.
     assert corr.loc["SP", "TP"] == pytest.approx(0.734756, abs=0.001)
     assert corr.loc["SP", "IB"] == pytest.approx(0.644206, abs=0.001)
     assert corr.loc["SP", "AUB"] == pytest.approx(0.691883, abs=0.001)
@@ -414,35 +507,49 @@ def test_preprocessing_and_eda_pipeline():
 
     assert corr.loc["IB", "AUB"] == pytest.approx(0.683213, abs=0.001)
 
+    # A correlation matrix must always have 1.0 on its diagonal (every
+    # construct correlates perfectly with itself). This is a structural
+    # sanity check independent of the actual data -- if it ever fails,
+    # the bug is in how the matrix itself is built (e.g. wrong axis,
+    # wrong method), not in the data.
     for construct in corr.columns:
         assert corr.loc[construct, construct] == pytest.approx(1.0)
 
-    # =====================================================
-    # T-TEST
-    # =====================================================
+    # ================================= T-TEST =================================
 
     t_stat, p_value = run_ttest_aub_gender(df)
 
+    # Checks BOTH the raw statistic and the resulting conclusion.
+    # t_stat/p_value pin down the exact numbers; p_value > 0.05 pins
+    # down the INTERPRETATION (no significant gender difference in
+    # AUB). If someone changes the test from Welch's to a different
+    # variant, the interpretation could stay the same while the raw
+    # numbers drift outside tolerance -- checking both catches either
+    # kind of change.
     assert t_stat == pytest.approx(-0.417, abs=0.01)
     assert p_value == pytest.approx(0.677, abs=0.01)
     assert p_value > 0.05
 
-    # =====================================================
-    # ANOVA
-    # =====================================================
-
+    # ================================= ANOVA =================================
     f_stat, p_value = run_anova_aub_area(df)
 
+    # Same reasoning as the t-test above: exact values plus the
+    # significance conclusion (no significant difference in AUB across
+    # Urban/Suburban/Rural respondents).
     assert f_stat == pytest.approx(1.4681, abs=0.01)
     assert p_value == pytest.approx(0.2310, abs=0.01)
     assert p_value > 0.05
 
-    # =====================================================
-    # FINAL OUTPUT
-    # =====================================================
+    # ================================= FINAL OUTPUT =================================
 
     gender_summary = get_aub_by_gender_summary(df)
 
+    # Cross-checks against the earlier gender distribution counts
+    # (167 male, 588 female) -- if these counts don't match, it means
+    # get_aub_by_gender_summary() is filtering or grouping respondents
+    # differently than get_gender_distribution() did, which would be
+    # an inconsistency worth catching even if each function looks
+    # correct in isolation.
     assert gender_summary.loc["Male", "count"] == 167
     assert gender_summary.loc["Female", "count"] == 588
     assert gender_summary.loc["Male", "mean"] == pytest.approx(3.66, abs=0.01)
@@ -454,6 +561,8 @@ def test_preprocessing_and_eda_pipeline():
 
     area_summary = get_aub_by_area_summary(df)
 
+    # Same cross-check idea as gender: 461 + 74 + 222 must equal 757
+    # and must match the earlier area distribution counts exactly.
     assert area_summary.loc["Urban", "count"] == 461
     assert area_summary.loc["Suburban", "count"] == 74
     assert area_summary.loc["Rural", "count"] == 222
@@ -468,6 +577,10 @@ def test_preprocessing_and_eda_pipeline():
 
     frequency_summary = get_aub_by_frequency_summary(df)
 
+    # Only counts are checked here (not mean/median/std) since the
+    # earlier frequency distribution already locked in these exact
+    # numbers -- this just confirms get_aub_by_frequency_summary()
+    # groups respondents the same way get_frequency_distribution() did.
     assert frequency_summary.loc["Daily", "count"] == 725
     assert frequency_summary.loc["Weekly", "count"] == 14
     assert frequency_summary.loc["Monthly", "count"] == 7
