@@ -43,9 +43,7 @@ EXPECTED_COLUMNS = [
     "AUB1", "AUB2", "AUB3", "AUB4",
 ]
 
-# ==========================================================
-# MODULE 1 - DATASET LOADING
-# ==========================================================
+# ======================= MODULE 1 - DATASET LOADING =======================
 
 # The following test checks:
 # - If the CSV file can be loaded successfully.
@@ -82,9 +80,8 @@ def test_invalid_dataset():
         load_dataset("invalid.csv")                  # Verify that loading a non-existent dataset raises a FileNotFoundError.
                         # Verify that loading a non-existent dataset raises a FileNotFoundError.
 
-# ==========================================================
-# MODULE 2 - DATASET VALIDATION
-# ==========================================================
+
+# ======================= MODULE 2 - DATASET VALIDATION =======================
 
 # The following test checks:
 # - If the dataset dimensions are reported correctly.
@@ -287,9 +284,7 @@ def test_validate_unique_values():
 
     assert summary["Unique Values"].tolist() == EXPECTED_UNIQUE_VALUES   # Verify that each variable contains only the expected categories or Likert scale values.
 
-# ==========================================================
-# MODULE 3 - DATA CLEANING
-# ==========================================================
+# ======================= MODULE 3 - DATA CLEANING =======================
 
 # The following test checks:
 # - If the Job column is removed successfully.
@@ -329,9 +324,8 @@ def test_drop_peu4():
     assert result.shape == (757, 30)                 # Verify that removing one column reduces the dataset to 30 variables.
     assert result.columns.tolist() == expected_columns   # Verify that the PEU4 column was successfully removed.
 
-# ==========================================================
-# MODULE 4 - FEATURE ENGINEERING
-# ==========================================================
+
+# ======================= MODULE 4 - FEATURE ENGINEERING =======================
 
 # The following tests checks:
 # - If the features composite scores are computed correctly.
@@ -370,190 +364,176 @@ def test_compute_pu():
 def test_compute_peu():
     """SCA-UT-008.2"""
 
-    df = load_dataset(DATASET_PATH)
+    df = load_dataset(DATASET_PATH)                       # Load the dataset for testing.
 
     result = compute_composite_score(
         df,
         ["PEU1", "PEU2", "PEU3"],
         "PEU"
-    )
+    )   # Compute the composite score for the Perceived Ease of Use (PEU) construct.
 
-    expected = EXPECTED_COLUMNS.copy()
-    expected.append("PEU")
+    expected = EXPECTED_COLUMNS.copy()                    # Create a copy of the expected dataset schema.
+    expected.append("PEU")                                # Append the new composite score column to the expected schema.
 
-    # Verify schema
-    assert result.columns.tolist() == expected
-    assert "PEU" in result.columns
+    assert result.columns.tolist() == expected            # Verify that the PEU column was added to the dataset.
+    assert "PEU" in result.columns                        # Verify that the PEU composite score column exists.
 
     # Verify that no observations were removed
     assert result.shape[0] == df.shape[0]
 
-    # Precomputed values
-    assert result.loc[0, "PEU"] == 4
-    assert result.loc[1, "PEU"] == 3
-    assert result.loc[100, "PEU"] == 3
-    assert result.loc[756, "PEU"] == pytest.approx(4.333333333333333)
+    assert result.loc[0, "PEU"] == 4                       # Verify that the first respondent's PEU score is correctly computed.
+    assert result.loc[1, "PEU"] == 3                       # Verify that the second respondent's PEU score is correctly computed.
+    assert result.loc[100, "PEU"] == 3                     # Verify that respondent 101's PEU score is correctly computed.
+    assert result.loc[756, "PEU"] == pytest.approx(4.333333333333333)   # Verify the last respondent's PEU score; approx is used since PEU is a 3-item mean that doesn't divide evenly.
 
 def test_compute_fsc():
     """SCA-UT-008.3"""
 
-    df = load_dataset(DATASET_PATH)
+    df = load_dataset(DATASET_PATH)                        # Load the dataset for testing.
 
     result = compute_composite_score(
         df,
         ["FSC1", "FSC2", "FSC3"],
         "FSC"
-    )
+    )   # Compute the composite score for the Facilitating Social Commerce Conditions (FSC) construct.
 
-    expected = EXPECTED_COLUMNS.copy()
-    expected.append("FSC")
+    expected = EXPECTED_COLUMNS.copy()                     # Create a copy of the expected dataset schema.
+    expected.append("FSC")                                 # Append the new composite score column to the expected schema.
 
-    # Verify schema
-    assert result.columns.tolist() == expected
-    assert "FSC" in result.columns
+    assert result.columns.tolist() == expected             # Verify that the FSC column was added to the dataset.
+    assert "FSC" in result.columns                         # Verify that the FSC composite score column exists.
 
     # Verify that no observations were removed
     assert result.shape[0] == df.shape[0]
 
-    # Precomputed values
-    assert result.loc[0, "FSC"] == 4
-    assert result.loc[1, "FSC"] == 3
-    assert result.loc[100, "FSC"] == 3
-    assert result.loc[756, "FSC"] == pytest.approx(4.333333333333333)
+    assert result.loc[0, "FSC"] == 4                        # Verify that the first respondent's FSC score is correctly computed.
+    assert result.loc[1, "FSC"] == 3                        # Verify that the second respondent's FSC score is correctly computed.
+    assert result.loc[100, "FSC"] == 3                      # Verify that respondent 101's FSC score is correctly computed.
+    assert result.loc[756, "FSC"] == pytest.approx(4.333333333333333)   # Verify the last respondent's FSC score; approx is used since FSC is a 3-item mean that doesn't divide evenly.
 
 
 def test_compute_sp():
     """SCA-UT-008.4"""
 
-    df = load_dataset(DATASET_PATH)
+    df = load_dataset(DATASET_PATH)                         # Load the dataset for testing.
 
     result = compute_composite_score(
         df,
         ["SP1", "SP2", "SP3", "SP4"],
         "SP"
-    )
+    )   # Compute the composite score for the Social Presence (SP) construct.
 
-    expected = EXPECTED_COLUMNS.copy()
-    expected.append("SP")
+    expected = EXPECTED_COLUMNS.copy()                      # Create a copy of the expected dataset schema.
+    expected.append("SP")                                   # Append the new composite score column to the expected schema.
 
-    # Verify schema
-    assert result.columns.tolist() == expected
-    assert "SP" in result.columns
+    assert result.columns.tolist() == expected              # Verify that the SP column was added to the dataset.
+    assert "SP" in result.columns                           # Verify that the SP composite score column exists.
 
     # Verify that no observations were removed
     assert result.shape[0] == df.shape[0]
 
-    # Precomputed values
-    assert result.loc[0, "SP"] == 4
-    assert result.loc[1, "SP"] == 3
-    assert result.loc[100, "SP"] == 3
-    assert result.loc[756, "SP"] == 4.5
+    assert result.loc[0, "SP"] == 4                          # Verify that the first respondent's SP score is correctly computed.
+    assert result.loc[1, "SP"] == 3                          # Verify that the second respondent's SP score is correctly computed.
+    assert result.loc[100, "SP"] == 3                        # Verify that respondent 101's SP score is correctly computed.
+    assert result.loc[756, "SP"] == 4.5                      # Verify the last respondent's SP score; this is the regression check for the bug where SP was once computed from SP1-SP3 instead of SP1-SP4.
 
 
 def test_compute_tp():
     """SCA-UT-008.5"""
 
-    df = load_dataset(DATASET_PATH)
+    df = load_dataset(DATASET_PATH)                          # Load the dataset for testing.
 
     result = compute_composite_score(
         df,
         ["TP1", "TP2", "TP3"],
         "TP"
-    )
+    )   # Compute the composite score for the Trust Perception (TP) construct.
 
-    expected = EXPECTED_COLUMNS.copy()
-    expected.append("TP")
+    expected = EXPECTED_COLUMNS.copy()                       # Create a copy of the expected dataset schema.
+    expected.append("TP")                                    # Append the new composite score column to the expected schema.
 
-    # Verify schema
-    assert result.columns.tolist() == expected
-    assert "TP" in result.columns
+    assert result.columns.tolist() == expected               # Verify that the TP column was added to the dataset.
+    assert "TP" in result.columns                            # Verify that the TP composite score column exists.
 
     # Verify that no observations were removed
     assert result.shape[0] == df.shape[0]
 
-    # Precomputed values
-    assert result.loc[0, "TP"] == 4
-    assert result.loc[1, "TP"] == 3
-    assert result.loc[100, "TP"] == 3
-    assert result.loc[756, "TP"] == 3
+    assert result.loc[0, "TP"] == 4                           # Verify that the first respondent's TP score is correctly computed.
+    assert result.loc[1, "TP"] == 3                           # Verify that the second respondent's TP score is correctly computed.
+    assert result.loc[100, "TP"] == 3                         # Verify that respondent 101's TP score is correctly computed.
+    assert result.loc[756, "TP"] == 3                         # Verify that the last respondent's TP score is correctly computed.
 
 
 def test_compute_ib():
     """SCA-UT-008.6"""
 
-    df = load_dataset(DATASET_PATH)
+    df = load_dataset(DATASET_PATH)                           # Load the dataset for testing.
 
     result = compute_composite_score(
         df,
         ["IB1", "IB2", "IB3", "IB4"],
         "IB"
-    )
+    )   # Compute the composite score for the Intention to Buy (IB) construct.
 
-    expected = EXPECTED_COLUMNS.copy()
-    expected.append("IB")
+    expected = EXPECTED_COLUMNS.copy()                        # Create a copy of the expected dataset schema.
+    expected.append("IB")                                     # Append the new composite score column to the expected schema.
 
-    # Verify schema
-    assert result.columns.tolist() == expected
-    assert "IB" in result.columns
+    assert result.columns.tolist() == expected                # Verify that the IB column was added to the dataset.
+    assert "IB" in result.columns                              # Verify that the IB composite score column exists.
 
     # Verify that no observations were removed
     assert result.shape[0] == df.shape[0]
 
-    # Precomputed values
-    assert result.loc[0, "IB"] == 3
-    assert result.loc[1, "IB"] == 3
-    assert result.loc[100, "IB"] == 3
-    assert result.loc[756, "IB"] == 4
+    assert result.loc[0, "IB"] == 3                             # Verify that the first respondent's IB score is correctly computed.
+    assert result.loc[1, "IB"] == 3                             # Verify that the second respondent's IB score is correctly computed.
+    assert result.loc[100, "IB"] == 3                           # Verify that respondent 101's IB score is correctly computed.
+    assert result.loc[756, "IB"] == 4                           # Verify that the last respondent's IB score is correctly computed.
 
 
 def test_compute_aub():
     """SCA-UT-008.7"""
 
-    df = load_dataset(DATASET_PATH)
+    df = load_dataset(DATASET_PATH)                             # Load the dataset for testing.
 
     result = compute_composite_score(
         df,
         ["AUB1", "AUB2", "AUB3", "AUB4"],
         "AUB"
-    )
+    )   # Compute the composite score for the Actual Usage Behavior (AUB) construct -- this is the eventual ML prediction target.
 
-    expected = EXPECTED_COLUMNS.copy()
-    expected.append("AUB")
+    expected = EXPECTED_COLUMNS.copy()                          # Create a copy of the expected dataset schema.
+    expected.append("AUB")                                      # Append the new composite score column to the expected schema.
 
-    # Verify schema
-    assert result.columns.tolist() == expected
-    assert "AUB" in result.columns
+    assert result.columns.tolist() == expected                  # Verify that the AUB column was added to the dataset.
+    assert "AUB" in result.columns                               # Verify that the AUB composite score column exists.
 
     # Verify that no observations were removed
     assert result.shape[0] == df.shape[0]    
 
-    # Precomputed values
-    assert result.loc[0, "AUB"] == 4
-    assert result.loc[1, "AUB"] == 3
-    assert result.loc[100, "AUB"] == 3
-    assert result.loc[756, "AUB"] == 4
+    assert result.loc[0, "AUB"] == 4                              # Verify that the first respondent's AUB score is correctly computed.
+    assert result.loc[1, "AUB"] == 3                              # Verify that the second respondent's AUB score is correctly computed.
+    assert result.loc[100, "AUB"] == 3                            # Verify that respondent 101's AUB score is correctly computed.
+    assert result.loc[756, "AUB"] == 4                            # Verify that the last respondent's AUB score is correctly computed.
 
 
 
-# ==========================================================
-# MODULE 5 - EXPLORATORY DATA ANALYSIS (EDA)
-# ==========================================================
+# ======================= EXPLORATORY DATA ANALYSIS (EDA) =======================
 @pytest.fixture
 def edaDF():
     """Load and preprocess the dataset exactly the way the notebook does."""
-    data = load_dataset(DATASET_PATH)
-    data = drop_columns(data, ["PEU4"])
-    data = drop_columns(data, ["Job"])
+    data = load_dataset(DATASET_PATH)                             # Load the raw dataset.
+    data = drop_columns(data, ["PEU4"])                           # Remove the undocumented PEU4 column.
+    data = drop_columns(data, ["Job"])                            # Remove Job, which has zero variance (only 1 unique value).
 
-    data = compute_composite_score(data, ["PU1", "PU2", "PU3", "PU4"], "PU")
-    data = compute_composite_score(data, ["PEU1", "PEU2", "PEU3"], "PEU")
-    data = compute_composite_score(data, ["FSC1", "FSC2", "FSC3"], "FSC")
-    data = compute_composite_score(data, ["SP1", "SP2", "SP3", "SP4"], "SP")
-    data = compute_composite_score(data, ["TP1", "TP2", "TP3"], "TP")
-    data = compute_composite_score(data, ["IB1", "IB2", "IB3", "IB4"], "IB")
-    data = compute_composite_score(data, ["AUB1", "AUB2", "AUB3", "AUB4"], "AUB")
+    data = compute_composite_score(data, ["PU1", "PU2", "PU3", "PU4"], "PU")        # Build the PU composite.
+    data = compute_composite_score(data, ["PEU1", "PEU2", "PEU3"], "PEU")           # Build the PEU composite.
+    data = compute_composite_score(data, ["FSC1", "FSC2", "FSC3"], "FSC")           # Build the FSC composite.
+    data = compute_composite_score(data, ["SP1", "SP2", "SP3", "SP4"], "SP")        # Build the SP composite (all 4 items, per the fixed bug).
+    data = compute_composite_score(data, ["TP1", "TP2", "TP3"], "TP")               # Build the TP composite.
+    data = compute_composite_score(data, ["IB1", "IB2", "IB3", "IB4"], "IB")        # Build the IB composite.
+    data = compute_composite_score(data, ["AUB1", "AUB2", "AUB3", "AUB4"], "AUB")   # Build the AUB composite (the ML target).
 
-    return data
+    return data                                                    # Return the fully cleaned, composite-scored dataset for EDA tests to consume.
 
 
 # DEMOGRAPHIC DISTRIBUTIONS
@@ -567,42 +547,42 @@ def edaDF():
 # - The column is changed.
 
 def test_get_gender_distribution(edaDF):
-    result = get_gender_distribution(edaDF)
+    result = get_gender_distribution(edaDF)             # Get the labeled Gender value counts.
 
-    assert result["Male"] == 167
-    assert result["Female"] == 588
-    assert result["Different"] == 2
-    assert result.sum() == 757
+    assert result["Male"] == 167                          # Verify the exact count of Male respondents.
+    assert result["Female"] == 588                        # Verify the exact count of Female respondents.
+    assert result["Different"] == 2                       # Verify the exact count of respondents who selected "Different".
+    assert result.sum() == 757                            # Verify that every respondent was counted exactly once, with none dropped or double-counted.
 
 
 def test_get_income_distribution(edaDF):
-    result = get_income_distribution(edaDF)
+    result = get_income_distribution(edaDF)              # Get the labeled Income value counts.
 
-    assert result["< $100"] == 672
-    assert result["$100 - $200"] == 68
-    assert result["$200 - $300"] == 12
-    assert result["$300 - $400"] == 2
-    assert result["> $400"] == 3
-    assert result.sum() == 757
+    assert result["< $100"] == 672                         # Verify the exact count of respondents in the lowest income bracket.
+    assert result["$100 - $200"] == 68                     # Verify the exact count of respondents in the second income bracket.
+    assert result["$200 - $300"] == 12                     # Verify the exact count of respondents in the third income bracket.
+    assert result["$300 - $400"] == 2                      # Verify the exact count of respondents in the fourth income bracket.
+    assert result["> $400"] == 3                           # Verify the exact count of respondents in the highest income bracket.
+    assert result.sum() == 757                             # Verify that every respondent was counted exactly once, with none dropped or double-counted.
 
 
 def test_get_area_distribution(edaDF):
-    result = get_area_distribution(edaDF)
+    result = get_area_distribution(edaDF)                # Get the labeled Area value counts.
 
-    assert result["Urban"] == 461
-    assert result["Suburban"] == 74
-    assert result["Rural"] == 222
-    assert result.sum() == 757
+    assert result["Urban"] == 461                          # Verify the exact count of Urban respondents.
+    assert result["Suburban"] == 74                        # Verify the exact count of Suburban respondents.
+    assert result["Rural"] == 222                          # Verify the exact count of Rural respondents.
+    assert result.sum() == 757                             # Verify that every respondent was counted exactly once, with none dropped or double-counted.
 
 
 def test_get_frequency_distribution(edaDF):
-    result = get_frequency_distribution(edaDF)
+    result = get_frequency_distribution(edaDF)           # Get the labeled Frequently (usage frequency) value counts.
 
-    assert result["Daily"] == 725
-    assert result["Weekly"] == 14
-    assert result["Monthly"] == 7
-    assert result["Rarely Used"] == 11
-    assert result.sum() == 757
+    assert result["Daily"] == 725                          # Verify the exact count of respondents who use social commerce daily.
+    assert result["Weekly"] == 14                          # Verify the exact count of respondents who use it weekly.
+    assert result["Monthly"] == 7                          # Verify the exact count of respondents who use it monthly.
+    assert result["Rarely Used"] == 11                     # Verify the exact count of respondents who rarely use it.
+    assert result.sum() == 757                             # Verify that every respondent was counted exactly once, with none dropped or double-counted.
 
 
 # CONSTRUCT DESCRIPTIVES / CORRELATIONS
@@ -615,19 +595,19 @@ def test_get_frequency_distribution(edaDF):
 # - Composite scores are modified.
 # - Statistical calculations are changed.
 def test_get_construct_descriptives_shape_and_range(edaDF):
-    result = get_construct_descriptives(edaDF)
+    result = get_construct_descriptives(edaDF)            # Run describe() on all 7 composite constructs.
 
     expected_constructs = ["PU", "PEU", "FSC", "SP", "TP", "IB", "AUB"]
-    assert result.columns.tolist() == expected_constructs
-    assert result.loc["count"].tolist() == [757] * 7
+    assert result.columns.tolist() == expected_constructs   # Verify describe() ran on exactly these 7 constructs, in this order, not on raw item-level columns.
+    assert result.loc["count"].tolist() == [757] * 7        # Verify all 757 respondents contributed to every construct's stats, i.e. no NaNs leaked into any composite.
 
-    assert result.loc["mean", "PU"] == pytest.approx(3.77, abs=0.01)
-    assert result.loc["mean", "PEU"] == pytest.approx(3.70, abs=0.01)
-    assert result.loc["mean", "FSC"] == pytest.approx(3.73, abs=0.01)
-    assert result.loc["mean", "SP"] == pytest.approx(3.60, abs=0.01)
-    assert result.loc["mean", "TP"] == pytest.approx(3.56, abs=0.01)
-    assert result.loc["mean", "IB"] == pytest.approx(3.61, abs=0.01)
-    assert result.loc["mean", "AUB"] == pytest.approx(3.68, abs=0.01)
+    assert result.loc["mean", "PU"] == pytest.approx(3.77, abs=0.01)     # Verify PU's mean matches the reported write-up value.
+    assert result.loc["mean", "PEU"] == pytest.approx(3.70, abs=0.01)    # Verify PEU's mean matches the reported write-up value.
+    assert result.loc["mean", "FSC"] == pytest.approx(3.73, abs=0.01)    # Verify FSC's mean matches the reported write-up value.
+    assert result.loc["mean", "SP"] == pytest.approx(3.60, abs=0.01)     # Verify SP's mean matches the reported write-up value.
+    assert result.loc["mean", "TP"] == pytest.approx(3.56, abs=0.01)     # Verify TP's mean matches the reported write-up value.
+    assert result.loc["mean", "IB"] == pytest.approx(3.61, abs=0.01)     # Verify IB's mean matches the reported write-up value.
+    assert result.loc["mean", "AUB"] == pytest.approx(3.68, abs=0.01)    # Verify AUB's mean matches the reported write-up value.
 
 # The following test checks:
 # - If the correlation values remain consistent with the original analysis.
@@ -645,40 +625,40 @@ def test_get_construct_correlation_matrix_known_pairs(edaDF):
     tight (abs=0.001) since these are full-precision, not rounded
     write-up numbers.
     """
-    corr = get_construct_correlation_matrix(edaDF)
+    corr = get_construct_correlation_matrix(edaDF)          # Compute the full Pearson correlation matrix across all 7 constructs.
 
-    assert corr.loc["PU", "PEU"] == pytest.approx(0.788226, abs=0.001)
-    assert corr.loc["PU", "FSC"] == pytest.approx(0.804070, abs=0.001)
-    assert corr.loc["PU", "SP"] == pytest.approx(0.718057, abs=0.001)
-    assert corr.loc["PU", "TP"] == pytest.approx(0.676910, abs=0.001)
-    assert corr.loc["PU", "IB"] == pytest.approx(0.655539, abs=0.001)
-    assert corr.loc["PU", "AUB"] == pytest.approx(0.771895, abs=0.001)
+    assert corr.loc["PU", "PEU"] == pytest.approx(0.788226, abs=0.001)   # Verify the PU-PEU correlation at full precision.
+    assert corr.loc["PU", "FSC"] == pytest.approx(0.804070, abs=0.001)   # Verify the PU-FSC correlation at full precision.
+    assert corr.loc["PU", "SP"] == pytest.approx(0.718057, abs=0.001)    # Verify the PU-SP correlation at full precision.
+    assert corr.loc["PU", "TP"] == pytest.approx(0.676910, abs=0.001)    # Verify the PU-TP correlation at full precision.
+    assert corr.loc["PU", "IB"] == pytest.approx(0.655539, abs=0.001)    # Verify the PU-IB correlation at full precision.
+    assert corr.loc["PU", "AUB"] == pytest.approx(0.771895, abs=0.001)   # Verify the PU-AUB correlation at full precision.
 
-    assert corr.loc["PEU", "FSC"] == pytest.approx(0.776458, abs=0.001)
-    assert corr.loc["PEU", "SP"] == pytest.approx(0.717394, abs=0.001)
-    assert corr.loc["PEU", "TP"] == pytest.approx(0.674808, abs=0.001)
-    assert corr.loc["PEU", "IB"] == pytest.approx(0.691334, abs=0.001)
-    assert corr.loc["PEU", "AUB"] == pytest.approx(0.785858, abs=0.001)
+    assert corr.loc["PEU", "FSC"] == pytest.approx(0.776458, abs=0.001)  # Verify the PEU-FSC correlation at full precision.
+    assert corr.loc["PEU", "SP"] == pytest.approx(0.717394, abs=0.001)   # Verify the PEU-SP correlation at full precision.
+    assert corr.loc["PEU", "TP"] == pytest.approx(0.674808, abs=0.001)   # Verify the PEU-TP correlation at full precision.
+    assert corr.loc["PEU", "IB"] == pytest.approx(0.691334, abs=0.001)   # Verify the PEU-IB correlation at full precision.
+    assert corr.loc["PEU", "AUB"] == pytest.approx(0.785858, abs=0.001)  # Verify the PEU-AUB correlation at full precision.
 
-    assert corr.loc["FSC", "SP"] == pytest.approx(0.766774, abs=0.001)
-    assert corr.loc["FSC", "TP"] == pytest.approx(0.710337, abs=0.001)
-    assert corr.loc["FSC", "IB"] == pytest.approx(0.657147, abs=0.001)
-    assert corr.loc["FSC", "AUB"] == pytest.approx(0.744687, abs=0.001)
+    assert corr.loc["FSC", "SP"] == pytest.approx(0.766774, abs=0.001)   # Verify the FSC-SP correlation at full precision.
+    assert corr.loc["FSC", "TP"] == pytest.approx(0.710337, abs=0.001)   # Verify the FSC-TP correlation at full precision.
+    assert corr.loc["FSC", "IB"] == pytest.approx(0.657147, abs=0.001)   # Verify the FSC-IB correlation at full precision.
+    assert corr.loc["FSC", "AUB"] == pytest.approx(0.744687, abs=0.001)  # Verify the FSC-AUB correlation at full precision.
 
-    assert corr.loc["SP", "TP"] == pytest.approx(0.734756, abs=0.001)
-    assert corr.loc["SP", "IB"] == pytest.approx(0.644206, abs=0.001)
-    assert corr.loc["SP", "AUB"] == pytest.approx(0.691883, abs=0.001)
+    assert corr.loc["SP", "TP"] == pytest.approx(0.734756, abs=0.001)    # Verify SP-TP; this pair shifted when the SP composite bug was fixed, so it's a key regression check.
+    assert corr.loc["SP", "IB"] == pytest.approx(0.644206, abs=0.001)    # Verify SP-IB; this pair also shifted when the SP composite bug was fixed.
+    assert corr.loc["SP", "AUB"] == pytest.approx(0.691883, abs=0.001)   # Verify SP-AUB at full precision.
 
-    assert corr.loc["TP", "IB"] == pytest.approx(0.663131, abs=0.001)
-    assert corr.loc["TP", "AUB"] == pytest.approx(0.662269, abs=0.001)
+    assert corr.loc["TP", "IB"] == pytest.approx(0.663131, abs=0.001)    # Verify the TP-IB correlation at full precision.
+    assert corr.loc["TP", "AUB"] == pytest.approx(0.662269, abs=0.001)   # Verify the TP-AUB correlation at full precision.
 
-    assert corr.loc["IB", "AUB"] == pytest.approx(0.683213, abs=0.001)
+    assert corr.loc["IB", "AUB"] == pytest.approx(0.683213, abs=0.001)   # Verify the IB-AUB correlation at full precision.
 
     # Sanity checks on the matrix shape itself, so a broken pivot/reindex
     # would still get caught even if the specific pairs above happened
     # to still line up.
     for construct in corr.columns:
-        assert corr.loc[construct, construct] == pytest.approx(1.0)
+        assert corr.loc[construct, construct] == pytest.approx(1.0)     # Verify every construct correlates perfectly (1.0) with itself on the diagonal.
 
 # AUB ACROSS DEMOGRAPHIC GROUPS
 # The following test checks:
@@ -689,19 +669,19 @@ def test_get_construct_correlation_matrix_known_pairs(edaDF):
 # - Gender categories are changed.
 # - Summary calculations are changed.
 def test_get_aub_by_gender_summary(edaDF):
-    result = get_aub_by_gender_summary(edaDF)
+    result = get_aub_by_gender_summary(edaDF)             # Get AUB count/mean/median/std grouped by gender (Male vs Female only).
 
-    assert result.loc["Male", "count"] == 167
-    assert result.loc["Female", "count"] == 588
+    assert result.loc["Male", "count"] == 167               # Verify the Male count matches the earlier gender distribution, confirming consistent grouping.
+    assert result.loc["Female", "count"] == 588              # Verify the Female count matches the earlier gender distribution.
 
-    assert result.loc["Male", "mean"] == pytest.approx(3.66, abs=0.01)
-    assert result.loc["Female", "mean"] == pytest.approx(3.69, abs=0.01)
+    assert result.loc["Male", "mean"] == pytest.approx(3.66, abs=0.01)     # Verify the mean AUB score for Male respondents.
+    assert result.loc["Female", "mean"] == pytest.approx(3.69, abs=0.01)   # Verify the mean AUB score for Female respondents.
 
-    assert result.loc["Male", "median"] == pytest.approx(3.75)
-    assert result.loc["Female", "median"] == pytest.approx(4.00)
+    assert result.loc["Male", "median"] == pytest.approx(3.75)             # Verify the median AUB score for Male respondents.
+    assert result.loc["Female", "median"] == pytest.approx(4.00)           # Verify the median AUB score for Female respondents.
 
-    assert result.loc["Male", "std"] == pytest.approx(0.79, abs=0.01)
-    assert result.loc["Female", "std"] == pytest.approx(0.67, abs=0.01)
+    assert result.loc["Male", "std"] == pytest.approx(0.79, abs=0.01)      # Verify the standard deviation of AUB scores for Male respondents.
+    assert result.loc["Female", "std"] == pytest.approx(0.67, abs=0.01)    # Verify the standard deviation of AUB scores for Female respondents.
 
 # The following test checks:
 # - If the t-test produces the expected t-statistic and p-value.
@@ -711,11 +691,11 @@ def test_get_aub_by_gender_summary(edaDF):
 # - Gender filtering is changed.
 # - The statistical method is modified.
 def test_run_ttest_aub_gender(edaDF):
-    t_stat, p_value = run_ttest_aub_gender(edaDF)
+    t_stat, p_value = run_ttest_aub_gender(edaDF)          # Run Welch's t-test comparing AUB between male and female respondents.
 
-    assert t_stat == pytest.approx(-0.417, abs=0.01)
-    assert p_value == pytest.approx(0.677, abs=0.01)
-    assert p_value > 0.05  # not statistically significant, per the report
+    assert t_stat == pytest.approx(-0.417, abs=0.01)         # Verify the t-statistic matches the reported value.
+    assert p_value == pytest.approx(0.677, abs=0.01)         # Verify the p-value matches the reported value.
+    assert p_value > 0.05  # not statistically significant, per the report     # Verify the interpretation: no significant AUB difference by gender.
 
 # The following test checks:
 # - If AUB summary statistics for each residential area are computed correctly.
@@ -725,19 +705,19 @@ def test_run_ttest_aub_gender(edaDF):
 # - Area categories are changed.
 # - Summary calculations are modified.
 def test_get_aub_by_area_summary(edaDF):
-    result = get_aub_by_area_summary(edaDF)
+    result = get_aub_by_area_summary(edaDF)               # Get AUB count/mean/median/std grouped by residential area.
 
-    assert result.loc["Urban", "count"] == 461
-    assert result.loc["Suburban", "count"] == 74
-    assert result.loc["Rural", "count"] == 222
+    assert result.loc["Urban", "count"] == 461               # Verify the Urban count matches the earlier area distribution, confirming consistent grouping.
+    assert result.loc["Suburban", "count"] == 74              # Verify the Suburban count matches the earlier area distribution.
+    assert result.loc["Rural", "count"] == 222                # Verify the Rural count matches the earlier area distribution.
 
-    assert result.loc["Urban", "mean"] == pytest.approx(3.71, abs=0.01)
-    assert result.loc["Suburban", "mean"] == pytest.approx(3.64, abs=0.01)
-    assert result.loc["Rural", "mean"] == pytest.approx(3.62, abs=0.01)
+    assert result.loc["Urban", "mean"] == pytest.approx(3.71, abs=0.01)      # Verify the mean AUB score for Urban respondents.
+    assert result.loc["Suburban", "mean"] == pytest.approx(3.64, abs=0.01)   # Verify the mean AUB score for Suburban respondents.
+    assert result.loc["Rural", "mean"] == pytest.approx(3.62, abs=0.01)      # Verify the mean AUB score for Rural respondents.
 
-    assert result.loc["Urban", "median"] == pytest.approx(4.00)
-    assert result.loc["Suburban", "median"] == pytest.approx(3.75)
-    assert result.loc["Rural", "median"] == pytest.approx(3.75)
+    assert result.loc["Urban", "median"] == pytest.approx(4.00)              # Verify the median AUB score for Urban respondents.
+    assert result.loc["Suburban", "median"] == pytest.approx(3.75)           # Verify the median AUB score for Suburban respondents.
+    assert result.loc["Rural", "median"] == pytest.approx(3.75)              # Verify the median AUB score for Rural respondents.
 
 # The following test checks:
 # - If the ANOVA produces the expected F-statistic and p-value.
@@ -747,11 +727,11 @@ def test_get_aub_by_area_summary(edaDF):
 # - Area filtering is changed.
 # - The statistical method is modified.
 def test_run_anova_aub_area(edaDF):
-    f_stat, p_value = run_anova_aub_area(edaDF)
+    f_stat, p_value = run_anova_aub_area(edaDF)            # Run a one-way ANOVA comparing AUB across Urban/Suburban/Rural respondents.
 
-    assert f_stat == pytest.approx(1.4681, abs=0.01)
-    assert p_value == pytest.approx(0.2310, abs=0.01)
-    assert p_value > 0.05  # not statistically significant, per the report
+    assert f_stat == pytest.approx(1.4681, abs=0.01)         # Verify the F-statistic matches the reported value.
+    assert p_value == pytest.approx(0.2310, abs=0.01)        # Verify the p-value matches the reported value.
+    assert p_value > 0.05  # not statistically significant, per the report     # Verify the interpretation: no significant AUB difference by area.
 
 # The following test checks:
 # - If AUB summary statistics for each frequency group are computed correctly.
@@ -761,10 +741,9 @@ def test_run_anova_aub_area(edaDF):
 # - Frequency categories are changed.
 # - Summary calculations are modified.
 def test_get_aub_by_frequency_summary(edaDF):
-    result = get_aub_by_frequency_summary(edaDF)
+    result = get_aub_by_frequency_summary(edaDF)          # Get AUB count/mean/median/std grouped by usage frequency.
 
-    assert result.loc["Daily", "count"] == 725
-    assert result.loc["Weekly", "count"] == 14
-    assert result.loc["Monthly", "count"] == 7
-    assert result.loc["Rarely Used", "count"] == 11
-
+    assert result.loc["Daily", "count"] == 725               # Verify the Daily count matches the earlier frequency distribution, confirming consistent grouping.
+    assert result.loc["Weekly", "count"] == 14                # Verify the Weekly count matches the earlier frequency distribution.
+    assert result.loc["Monthly", "count"] == 7                 # Verify the Monthly count matches the earlier frequency distribution.
+    assert result.loc["Rarely Used", "count"] == 11             # Verify the Rarely Used count matches the earlier frequency distribution.
