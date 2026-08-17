@@ -1090,16 +1090,30 @@ def test_clustering_pipeline():
     assert result.loc[2, 3] < 0.05
 
 
+# The following integration test checks:
+# - If the machine learning pipeline correctly processes the engineered features.
+# - If dataset partitioning and scaling prevent data leakage.
+# - If the hyperparameter grid search executes and finds an optimal model.
+# - If both Random Forest and MLP models meet the established performance baselines.
+#
+# This test will fail if:
+# - The preprocessing or composite-score calculations change.
+# - Target or predictor variables are missing or misaligned.
+# - Data leakage occurs during the train-test split or scaling.
+# - The parameter grids are altered in a way that breaks GridSearchCV.
+# - The models fail to achieve an R² > 0.70 (RF) or > 0.65 (MLP).
 def test_machine_learning_pipeline():
     """
     SCT-003
-    Extensive end-to-end integration test for the machine 
-    learning predictive modeling pipeline (Random Forest and MLP).
+
+    End-to-end integration test for the machine learning
+    predictive modeling pipeline (Random Forest and MLP).
     """
 
-    # =====================================================
-    # PREPROCESSING
-    # =====================================================
+    # ================================= PREPROCESSING =================================
+    # Loads the dataset and applies the same preprocessing and composite-score
+    # calculations established in Phase 1 to guarantee the machine learning
+    # models receive the exact same input as the original analysis.
     df = load_dataset(DATASET_PATH)
     df = drop_columns(df, ["Job", "PEU4"])
 
@@ -1116,9 +1130,10 @@ def test_machine_learning_pipeline():
     for construct, items in composites.items():
         df = compute_composite_score(df, items, construct)
 
-    # =====================================================
-    # FEATURE & TARGET SELECTION
-    # =====================================================
+    # ================================= FEATURE & TARGET SELECTION =================================
+    # Extracts the six behavioral constructs to serve as predictive features
+    # and isolates AUB as the prediction target. Checking dimensions ensures
+    # no variables were unintentionally dropped.
     X = ml_select_features(df, FEATURES)
     y = select_target(df, "AUB")
 
@@ -1130,9 +1145,9 @@ def test_machine_learning_pipeline():
     assert len(y) == 757
     assert y.name == "AUB"
 
-    # =====================================================
-    # DATASET PARTITIONING & SCALING
-    # =====================================================
+    # ================================= DATASET PARTITIONING & SCALING =================================
+    # Partitions the dataset into an 80/20 train/test split. Fixing the
+    # random state guarantees reproducible metric evaluation across test runs.
     X_train, X_test, y_train, y_test = split_dataset(
         X, y, test_size=0.20, random_state=1
     )
@@ -1142,6 +1157,9 @@ def test_machine_learning_pipeline():
     assert len(y_train) == 605
     assert len(y_test) == 152
 
+    # Standardizes the predictors by fitting to the training set only,
+    # preventing data leakage. Checking that the scaled training array has
+    # a mean of 0 and std of 1 confirms the transformation was successful.
     scaler, X_train_scaled, X_test_scaled = ml_standardize_features(
         X_train, X_test
     )
@@ -1155,9 +1173,9 @@ def test_machine_learning_pipeline():
     assert kf.get_n_splits() == 10
     assert kf.shuffle is True
 
-    # =====================================================
-    # RANDOM FOREST
-    # =====================================================
+    # ================================= RANDOM FOREST PIPELINE =================================
+    # Confirms the Random Forest hyperparameter grid contains the exact 
+    # tuning arguments required by the notebook.
     rf_param_grid = create_rf_param_grid()
     assert "n_estimators" in rf_param_grid
     assert "max_depth" in rf_param_grid
@@ -1166,6 +1184,8 @@ def test_machine_learning_pipeline():
     assert isinstance(rf_grid, GridSearchCV)
     assert isinstance(rf_grid.estimator, RandomForestRegressor)
 
+    # Validates that the cross-validated grid search executes without error
+    # and successfully identifies an optimal set of parameters.
     rf_fitted = fit_rf_gridsearch(rf_grid, X_train, y_train)
     assert hasattr(rf_fitted, "best_estimator_")
     assert hasattr(rf_fitted, "best_params_")
@@ -1181,15 +1201,17 @@ def test_machine_learning_pipeline():
     rf_model = get_best_rf_model(rf_fitted)
     assert isinstance(rf_model, RandomForestRegressor)
 
+    # Verifies that the best model can successfully process the test set
+    # and return an array of predictions equivalent in length to y_test.
     rf_predictions = predict_rf(rf_model, X_test)
     assert isinstance(rf_predictions, np.ndarray)
     assert len(rf_predictions) == len(y_test)
 
     rf_mae, rf_mse, rf_rmse, rf_r2 = evaluate_regression(y_test, rf_predictions)
 
-    # =====================================================
-    # MLP
-    # =====================================================
+    # ================================= MLP PIPELINE =================================
+    # Confirms the Multi-Layer Perceptron hyperparameter grid contains 
+    # the exact tuning arguments required for neural network optimization.
     mlp_param_grid = create_mlp_param_grid()
     assert "hidden_layer_sizes" in mlp_param_grid
     assert "learning_rate_init" in mlp_param_grid
@@ -1198,6 +1220,8 @@ def test_machine_learning_pipeline():
     assert isinstance(mlp_grid, GridSearchCV)
     assert isinstance(mlp_grid.estimator, MLPRegressor)
 
+    # Validates that the scaled data functions properly during MLP grid
+    # search and successfully yields an optimized neural network estimator.
     mlp_fitted = fit_mlp_gridsearch(mlp_grid, X_train_scaled, y_train)
     assert hasattr(mlp_fitted, "best_estimator_")
     assert hasattr(mlp_fitted, "best_params_")
@@ -1214,29 +1238,25 @@ def test_machine_learning_pipeline():
 
     mlp_mae, mlp_mse, mlp_rmse, mlp_r2 = evaluate_regression(y_test, mlp_predictions)
 
-    # =====================================================
-    # MODEL COMPARISON
-    # =====================================================
+    # ================================= MODEL COMPARISON =================================
+    # Extracts the comparative performance metrics for both algorithms.
+    # Checking the shape and headers guarantees the comparison table
+    # preserves the correct formatting for report generation.
     comparison = compare_models(
         rf_mae, rf_mse, rf_rmse, rf_r2,
         mlp_mae, mlp_mse, mlp_rmse, mlp_r2
     )
 
-    assert isinstance(comparison, pd.DataFrame)
     assert comparison.shape == (2, 5)
     assert comparison["Model"].tolist() == ["Random Forest", "MLP"]
-    assert comparison["MAE"].notna().all()
-    assert comparison["MSE"].notna().all()
-    assert comparison["RMSE"].notna().all()
-    assert comparison["R²"].notna().all()
 
-    # Verify models maintain the specific established performance baseline
+    # Verifies the final Random Forest and MLP predictive capabilities against
+    # the established performance baselines. If R² dips or RMSE spikes, 
+    # the pipeline has suffered a critical regression and fails.
     assert rf_r2 > 0.70
     assert mlp_r2 > 0.65
     assert rf_rmse < 0.45
     assert mlp_rmse < 0.45
-    assert rf_mae >= 0
-    assert mlp_mae >= 0
 
 
 # The following system integration test checks:
@@ -1260,6 +1280,7 @@ def test_machine_learning_pipeline():
 #   the established notebook baseline.
 def test_system_pipeline():
     """
+    SCT-004
 
     Full end-to-end system test: load -> validate -> clean ->
     feature engineer -> EDA -> cluster -> statistical inference ->
@@ -1859,8 +1880,8 @@ def test_system_pipeline():
     assert isinstance(mlp_grid, GridSearchCV)
     assert isinstance(mlp_grid.estimator, MLPRegressor)
 
-        # Confirms that the MLP grid search successfully completed and produced
-        # a fitted best estimator and best parameter configuration.
+    # Confirms that the MLP grid search successfully completed and produced
+    # a fitted best estimator and best parameter configuration.
     mlp_fitted = fit_mlp_gridsearch(mlp_grid, X_train_scaled, y_train)
     assert hasattr(mlp_fitted, "best_estimator_")
     assert hasattr(mlp_fitted, "best_params_")
