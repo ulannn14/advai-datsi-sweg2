@@ -1,0 +1,2 @@
+﻿Urban,Suburban,Rural
+"=FILTER(Sheet1!AK2:AK758,Sheet1!D2:D758=1)",,
