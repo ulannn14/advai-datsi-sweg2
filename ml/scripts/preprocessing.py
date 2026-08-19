@@ -167,7 +167,7 @@ def run_ttest_aub_gender(df):
     male = data[data["Gender"] == 1]["AUB"]
     female = data[data["Gender"] == 2]["AUB"]
 
-    t_stat, p_value = stats.ttest_ind(male, female, equal_var=False)
+    t_stat, p_value = stats.ttest_ind(female, male, equal_var=False)
 
     return t_stat, p_value
 
