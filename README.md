@@ -138,9 +138,6 @@ The GitHub Actions workflow runs on every push and pull request to `development`
 Wang, C.-K., Lin, C.-Y., & Le, B. H. (2026). Dataset on social and behavioral factors influencing social commerce adoption among Gen Z university students in Vietnam. *Data in Brief, 65*, Article 112529. https://doi.org/10.1016/j.dib.2026.112529
 
 ## Team
-
-[ADD: team members and roles]
-
 **Rlsrain Mackenlhy Orcullo** led the project, chose the modeling approach, planned the machine learning pipeline and the CI/CD workflow, performed the statistical analysis, and wrote the preprocessing and EDA test suite.
 **Lian Carlos Barte**
 **Leigh Gwyneth Albo**
